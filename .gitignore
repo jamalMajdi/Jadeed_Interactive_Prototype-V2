@@ -1,0 +1,6 @@
+node_modules
+dist
+shots/*.png
+!shots/review-*.png
+.DS_Store
+shots/gallery/

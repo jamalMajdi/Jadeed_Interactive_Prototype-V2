@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { direction: rtl; }
+  body {
+    @apply font-cairo bg-ink-200 text-ink-900 antialiased;
+    background: radial-gradient(1200px 600px at 80% -10%, #ede5fd 0%, transparent 60%),
+                radial-gradient(900px 500px at 10% 110%, #ffe6d9 0%, transparent 60%),
+                #e9eaf0;
+  }
+  input, textarea, select, button { font-family: inherit; }
+  input::placeholder { @apply text-ink-400; }
+  /* أرقام لاتينية ثابتة في الحقول الرقمية */
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-card font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none; }
+  .btn-primary { @apply btn bg-primary text-white shadow-primary hover:bg-primary-700; }
+  .btn-secondary { @apply btn bg-secondary text-white shadow-secondary hover:bg-secondary-600; }
+  .btn-outline { @apply btn bg-white text-ink-700 border border-ink-200 hover:bg-ink-50; }
+  .btn-ghost { @apply btn bg-ink-100 text-ink-800 hover:bg-ink-200; }
+  .btn-danger { @apply btn bg-danger text-white hover:bg-danger-700; }
+  .btn-success { @apply btn bg-success text-white hover:bg-success-700; }
+  .btn-lg { @apply h-[52px] px-6 text-[15px]; }
+  .btn-md { @apply h-11 px-5 text-[14px]; }
+  .btn-sm { @apply h-9 px-4 text-[12px] rounded-xl; }
+  .btn-xs { @apply h-7 px-3 text-[11px] rounded-lg; }
+
+  .card { @apply bg-white rounded-card shadow-card border border-ink-100; }
+  .field { @apply w-full h-12 rounded-field bg-ink-100 border border-transparent px-4 text-[14px] font-medium text-ink-800 outline-none transition focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10; }
+  .field-error { @apply bg-danger-50 border-danger text-danger-700 focus:border-danger focus:ring-danger/10; }
+  .label { @apply block text-[12px] font-bold text-ink-900 mb-1.5; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 h-6 text-[10px] font-bold whitespace-nowrap; }
+  .icon-btn { @apply inline-flex items-center justify-center w-9 h-9 rounded-full bg-ink-100 text-ink-800 transition hover:bg-ink-200 active:scale-95; }
+  .section-title { @apply text-[14px] font-bold text-ink-900; }
+  .link { @apply text-[12px] font-semibold text-primary; }
+}
+
+/* شريط تمرير رفيع داخل الهاتف */
+.scroll-thin::-webkit-scrollbar { width: 0; height: 0; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
