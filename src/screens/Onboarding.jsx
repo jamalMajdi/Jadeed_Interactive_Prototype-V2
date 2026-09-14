@@ -139,7 +139,7 @@ export function AccountType() {
           {TYPES.map(({ key, Icon, title, desc }) => {
             const active = sel === key
             return (
-              <button key={key} onClick={() => setSel(key)} className={`w-full text-right rounded-card p-4 flex items-start gap-3 border transition-all ${active ? 'bg-secondary border-secondary text-white shadow-secondary' : 'bg-white border-ink-200 text-ink-900 hover:border-ink-300'}`}>
+              <button key={key} onClick={() => setSel(key)} className={`w-full text-right rounded-card p-4 flex items-start gap-3 border transition-all ${active ? 'bg-secondary border-secondary text-white shadow-accent' : 'bg-white border-ink-200 text-ink-900 hover:border-ink-300'}`}>
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-white/20' : 'bg-ink-100 text-ink-500'}`}>
                   <Icon size={22} strokeWidth={1.9} />
                 </div>

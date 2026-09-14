@@ -194,7 +194,7 @@ function Landing({ go }) {
         <div className="grid md:grid-cols-2 gap-4 mt-8">
           <button onClick={() => go('/gallery')} className="group text-right rounded-[28px] bg-white border border-ink-200 p-6 shadow-card hover:shadow-elevated hover:border-primary transition-all active:scale-[0.99]">
             <div className="flex items-start justify-between">
-              <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-primary"><LayoutGrid size={26} /></div>
+              <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-brand"><LayoutGrid size={26} /></div>
               <span className="text-[11px] font-extrabold text-primary bg-primary-50 rounded-full px-3 h-7 flex items-center">{GALLERY_COUNT} شاشة</span>
             </div>
             <h2 className="text-[22px] font-extrabold text-ink-900 mt-5">معرض الشاشات</h2>
@@ -205,7 +205,7 @@ function Landing({ go }) {
             <span className="inline-flex items-center gap-1 text-[13px] font-extrabold text-primary mt-5 group-hover:gap-2 transition-all">فتح المعرض <ChevronLeft size={16} strokeWidth={2.6} /></span>
           </button>
 
-          <button onClick={() => go('/prototype')} className="group text-right rounded-[28px] bg-gradient-to-bl from-primary to-primary-800 text-white p-6 shadow-primary hover:shadow-modal transition-all active:scale-[0.99] relative overflow-hidden">
+          <button onClick={() => go('/prototype')} className="group text-right rounded-[28px] bg-gradient-to-bl from-primary to-primary-800 text-white p-6 shadow-brand hover:shadow-modal transition-all active:scale-[0.99] relative overflow-hidden">
             <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-white/10" />
             <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-secondary/30 blur-2xl" />
             <div className="relative">
@@ -341,7 +341,7 @@ function Gallery({ route, go }) {
                         const active = it.key === item.key
                         return (
                           <li key={it.key}>
-                            <button onClick={() => { go(`/gallery/${it.key}`); setMenu(false) }} className={`w-full text-right px-3 h-9 rounded-lg flex items-center gap-2 transition ${active ? 'bg-primary text-white shadow-primary' : 'hover:bg-white text-ink-700'}`}>
+                            <button onClick={() => { go(`/gallery/${it.key}`); setMenu(false) }} className={`w-full text-right px-3 h-9 rounded-lg flex items-center gap-2 transition ${active ? 'bg-primary text-white shadow-brand' : 'hover:bg-white text-ink-700'}`}>
                               <span className={`text-[11px] font-bold truncate flex-1 ${active ? 'text-white' : ''}`}>{it.title}</span>
                               {it.code && <span className={`text-[9px] font-mono font-bold shrink-0 ${active ? 'text-white/80' : 'text-secondary'}`} dir="ltr">{it.code}</span>}
                             </button>
@@ -403,7 +403,7 @@ function DemoPanel({ go }) {
     <aside className="w-[290px] shrink-0 hidden lg:flex flex-col gap-4 text-ink-800">
       <div className="flex items-center gap-2">
         <button onClick={() => go('/')} className="icon-btn bg-white" aria-label="العودة للبداية"><ArrowRight size={18} strokeWidth={2.4} /></button>
-        <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center shadow-primary"><Smartphone className="text-white" size={20} /></div>
+        <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center shadow-brand"><Smartphone className="text-white" size={20} /></div>
         <div>
           <h1 className="text-[18px] font-black text-ink-900 leading-none">جديد · نموذج تفاعلي</h1>
           <p className="text-[11px] font-medium text-ink-500 mt-1">React + Tailwind · RTL · Cairo · 390×844</p>

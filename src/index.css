@@ -17,9 +17,9 @@
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-card font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none; }
-  .btn-primary { @apply btn bg-primary text-white shadow-primary hover:bg-primary-700; }
-  .btn-secondary { @apply btn bg-secondary text-white shadow-secondary hover:bg-secondary-600; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-card font-bold transition-all duration-200 active:scale-[0.985] disabled:opacity-50 disabled:pointer-events-none select-none; }
+  .btn-primary { @apply btn bg-primary text-white shadow-brand hover:bg-primary-700 hover:shadow-brand-hover active:shadow-none; }
+  .btn-secondary { @apply btn bg-secondary text-white shadow-accent hover:bg-secondary-600 hover:shadow-accent-hover active:shadow-none; }
   .btn-outline { @apply btn bg-white text-ink-700 border border-ink-200 hover:bg-ink-50; }
   .btn-ghost { @apply btn bg-ink-100 text-ink-800 hover:bg-ink-200; }
   .btn-danger { @apply btn bg-danger text-white hover:bg-danger-700; }

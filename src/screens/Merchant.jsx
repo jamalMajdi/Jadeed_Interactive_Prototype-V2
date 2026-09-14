@@ -572,7 +572,7 @@ export function MerchantStats() {
             {MERCHANT.weekly.map((d, i) => { const h = Math.round((d.value / max) * 100); const best = d.value === max; return (
               <div key={d.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
                 <span className={`text-[9px] font-bold tabular ${best ? 'text-secondary' : 'text-ink-400'}`}>{d.value}</span>
-                <div className={`w-full rounded-t-lg transition-all ${best ? 'bg-secondary shadow-secondary' : 'bg-primary/80'}`} style={{ height: `${h}%`, animation: `slide-up .5s ${i * 60}ms both` }} />
+                <div className={`w-full rounded-t-lg transition-all ${best ? 'bg-secondary shadow-accent' : 'bg-primary/80'}`} style={{ height: `${h}%`, animation: `slide-up .5s ${i * 60}ms both` }} />
                 <span className="text-[9px] font-semibold text-ink-500">{d.day}</span>
               </div>
             ) })}

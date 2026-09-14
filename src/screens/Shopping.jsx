@@ -42,7 +42,7 @@ function MapBackdrop({ pin = false, label }) {
       {pin && (
         <div className="absolute left-1/2 top-[44%] -translate-x-1/2 -translate-y-full flex flex-col items-center animate-pop">
           {label && <div className="bg-ink-900 text-white text-[11px] font-bold rounded-full px-3 h-7 flex items-center mb-1 shadow-elevated">{label}</div>}
-          <div className="w-10 h-10 rounded-full bg-secondary text-white flex items-center justify-center shadow-secondary ring-4 ring-white">
+          <div className="w-10 h-10 rounded-full bg-secondary text-white flex items-center justify-center shadow-accent ring-4 ring-white">
             <MapPin size={18} strokeWidth={2.4} fill="currentColor" />
           </div>
           <div className="w-4 h-1.5 rounded-full bg-ink-900/20 mt-1" />
@@ -244,7 +244,7 @@ export function Home() {
   const unread = state.seenNotifications ? 0 : 3
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
-      <div className="bg-primary text-white rounded-b-[28px] shadow-primary relative overflow-hidden">
+      <div className="bg-primary text-white rounded-b-[28px] shadow-brand relative overflow-hidden">
         <div className="absolute -top-16 -left-10 w-48 h-48 rounded-full bg-white/10" />
         <StatusBar light />
         <div className="px-4 pb-4 relative">
@@ -277,7 +277,7 @@ export function Home() {
               <Search size={16} className="text-ink-400" />
               ابحث عن منتج، متجر، أو علامة...
             </button>
-            <button onClick={() => navigate('filters')} className="w-11 h-11 rounded-2xl bg-secondary text-white flex items-center justify-center shadow-secondary" aria-label="الفلاتر">
+            <button onClick={() => navigate('filters')} className="w-11 h-11 rounded-2xl bg-secondary text-white flex items-center justify-center shadow-accent" aria-label="الفلاتر">
               <SlidersHorizontal size={18} strokeWidth={2.2} />
             </button>
           </div>
@@ -287,7 +287,7 @@ export function Home() {
       <div className="flex-1 overflow-y-auto scroll-thin pb-28">
         {/* بانر العرض */}
         <div className="px-4 pt-4">
-          <div className="relative overflow-hidden rounded-modal bg-gradient-to-l from-secondary to-secondary-400 text-white p-4 shadow-secondary">
+          <div className="relative overflow-hidden rounded-modal bg-gradient-to-l from-secondary to-secondary-400 text-white p-4 shadow-accent">
             <Sparkles className="absolute left-4 top-3 text-white/25" size={80} strokeWidth={1.2} />
             <span className="inline-block bg-white/20 rounded-full px-2.5 h-5 text-[10px] font-bold leading-5">عرض اليوم الخاص</span>
             <h2 className="text-[20px] font-black mt-2 leading-tight">خصومات تصل 50%</h2>
@@ -301,7 +301,7 @@ export function Home() {
           <SectionHeader title="الأقسام والتصنيفات" action="عرض الكل" onAction={() => navigate('search')} />
           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
             {CATEGORIES.map((c) => (
-              <button key={c.id} onClick={() => setCat(c.id)} className={`h-8 px-3.5 rounded-full text-[12px] font-bold whitespace-nowrap transition ${cat === c.id ? 'bg-primary text-white shadow-primary' : 'bg-white text-ink-700 border border-ink-200'}`}>
+              <button key={c.id} onClick={() => setCat(c.id)} className={`h-8 px-3.5 rounded-full text-[12px] font-bold whitespace-nowrap transition ${cat === c.id ? 'bg-primary text-white shadow-brand' : 'bg-white text-ink-700 border border-ink-200'}`}>
                 {c.label}
               </button>
             ))}
@@ -426,7 +426,7 @@ function StoreProductCard({ product, onOpen }) {
         <button
           onClick={add}
           aria-label={`أضف ${product.shortName} للسلة`}
-          className={`relative w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-primary active:scale-95 transition ${product.stock <= 0 ? 'bg-ink-300 shadow-none' : 'bg-primary hover:bg-primary-600'}`}
+          className={`relative w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-brand hover:shadow-brand-hover active:shadow-none active:scale-95 transition ${product.stock <= 0 ? 'bg-ink-300 shadow-none' : 'bg-primary hover:bg-primary-600'}`}
         >
           <Plus size={18} strokeWidth={2.6} />
           {inCart > 0 && <span className="absolute -top-1.5 -left-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-secondary text-[10px] font-extrabold flex items-center justify-center border-2 border-white tabular">{inCart}</span>}
@@ -513,7 +513,7 @@ export function StoreScreen() {
 
       {/* زر ثابت أسفل الشاشة كما في التصميم */}
       <div className="absolute inset-x-0 bottom-0 px-4 pt-6 pb-4 bg-gradient-to-t from-ink-50 via-ink-50/95 to-transparent">
-        <button onClick={() => switchTab('home')} className="btn-primary btn-lg w-full shadow-primary">العودة إلى الرئيسية</button>
+        <button onClick={() => switchTab('home')} className="btn-primary btn-lg w-full">العودة إلى الرئيسية</button>
         <HomeIndicator />
       </div>
     </div>

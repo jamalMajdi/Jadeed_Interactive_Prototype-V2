@@ -67,8 +67,13 @@ export default {
         card: '0 1px 2px rgba(0,0,0,0.05)',
         elevated: '0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.06)',
         modal: '0 25px 50px -12px rgba(0,0,0,0.25)',
-        primary: '0 4px 6px rgba(80,2,201,0.25), 0 10px 15px rgba(80,2,201,0.20)',
-        secondary: '0 4px 6px rgba(255,87,21,0.25), 0 10px 15px rgba(255,87,21,0.20)',
+        // ظلال الأزرار — ناعمة ومنخفضة (احترافية). سُمّيت brand/accent عمداً كي لا تتعارض مع أدوات shadow-{color} في Tailwind
+        // (التعارض السابق مع shadow-primary كان يُسقط الشفافية ويرسم الظل بلون صلب ثقيل)
+        brand: '0 1px 2px rgba(80,2,201,0.18), 0 4px 10px -2px rgba(80,2,201,0.16)',
+        accent: '0 1px 2px rgba(255,87,21,0.18), 0 4px 10px -2px rgba(255,87,21,0.16)',
+        // عند التمرير/التركيز فقط: ارتفاع طفيف
+        'brand-hover': '0 2px 4px rgba(80,2,201,0.16), 0 8px 16px -4px rgba(80,2,201,0.22)',
+        'accent-hover': '0 2px 4px rgba(255,87,21,0.16), 0 8px 16px -4px rgba(255,87,21,0.22)',
         nav: '0 -4px 20px rgba(17,24,39,0.06)',
       },
       keyframes: {

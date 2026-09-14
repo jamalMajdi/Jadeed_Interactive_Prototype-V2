@@ -45,7 +45,7 @@ export function Account() {
 
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-3">
         {merchant === 'approved' ? (
-          <button onClick={() => switchTab('m-dashboard')} className="w-full rounded-card bg-primary text-white p-4 flex items-center gap-3 text-right shadow-primary active:scale-[0.99] transition">
+          <button onClick={() => switchTab('m-dashboard')} className="w-full rounded-card bg-primary text-white p-4 flex items-center gap-3 text-right shadow-brand active:scale-[0.99] transition">
             <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><LayoutDashboard size={22} /></div>
             <div className="flex-1">
               <p className="text-[14px] font-bold">لوحة تحكم المتجر</p>
