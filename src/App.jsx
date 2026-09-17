@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './store/AppContext'
 import { Toast, Logo } from './components/ui'
-import { Splash, Onboarding, AccountType, Login, OtpSent, OtpVerify, OtpLocked, LoginSuccess, Register, RegisterSuccess, RegisterFailed } from './screens/Onboarding'
+import { Splash, Onboarding, AccountType, Login, OtpSent, OtpVerify, OtpLocked, LoginSuccess, Register, RegisterSuccess, RegisterFailed, ForgotPassword } from './screens/Onboarding'
 import { LocationPermission, LocationSuccess, LocationDenied, Addresses, MapPinScreen, Home, NearbyStores, StoreScreen, ProductScreen, SearchScreen, FiltersScreen, Favorites } from './screens/Shopping'
 import { CartScreen, Checkout, OrderSuccess, OrderFailed, OutOfStock, Orders, OrderDetails, OrderCancelled, Tracking } from './screens/Cart'
-import { Account, Notifications, Support } from './screens/Account'
+import { Account, Notifications, Support, Legal } from './screens/Account'
 import { MerchantIntro, MerchantForm, MerchantIdentity, MerchantMedia, MerchantPending, MerchantApproved, MerchantRejected, MerchantDashboard, MerchantStoreEdit, MerchantProducts, MerchantProductForm, MerchantProductSaved, MerchantProductDeleted, MerchantOrders, MerchantOrder, MerchantOrderAccepted, MerchantOrderRejected, MerchantStats, MerchantNotifications, AdminLogin } from './screens/Merchant'
 import { ComponentsShowcase } from './gallery/ComponentsShowcase'
 import { GALLERY, GALLERY_ITEMS, GALLERY_COUNT, stateForItem } from './gallery/catalog'
@@ -25,6 +25,7 @@ export const SCREENS = {
   register: Register,
   registerSuccess: RegisterSuccess,
   registerFailed: RegisterFailed,
+  forgotPassword: ForgotPassword,
 
   locationPermission: LocationPermission,
   locationSuccess: LocationSuccess,
@@ -53,6 +54,7 @@ export const SCREENS = {
   account: Account,
   notifications: Notifications,
   support: Support,
+  legal: Legal,
 
   merchantIntro: MerchantIntro,
   merchantForm: MerchantForm,
@@ -414,9 +416,9 @@ function DemoPanel({ go }) {
         <p className="text-[11px] font-extrabold text-ink-500 px-1 mb-1">اختصارات العرض</p>
         <Btn onClick={() => navigate('splash', {}, { resetTo: true })} Icon={RotateCcw}>إعادة التشغيل من البداية</Btn>
         <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); switchTab('home') }} Icon={ShoppingBag}>الدخول مباشرة كعميل</Btn>
-        <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); switchTab('m-dashboard') }} Icon={Store}>لوحة التاجر (M-050)</Btn>
+        <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'both' }); dispatch({ type: 'LOGIN' }); switchTab('m-dashboard') }} Icon={Store}>لوحة التاجر (M-050)</Btn>
         <Btn onClick={() => navigate('login', {}, { resetTo: true })} Icon={KeyRound}>شاشة الدخول (OTP = 1234)</Btn>
-        <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'none' }); navigate('merchantIntro', {}, { resetTo: true }) }} Icon={Store}>رحلة توثيق تاجر جديد (M-042)</Btn>
+        <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'customer' }); if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'none' }); navigate('merchantIntro', {}, { resetTo: true }) }} Icon={Store}>رحلة توثيق تاجر جديد (M-042)</Btn>
         <Btn onClick={() => go('/gallery')} Icon={LayoutGrid}>الانتقال إلى معرض الشاشات</Btn>
       </div>
 
@@ -428,7 +430,7 @@ function DemoPanel({ go }) {
           <dt className="text-ink-500">إجمالي السلة</dt><dd className="font-bold text-secondary">{new Intl.NumberFormat('en-US').format(cart.total)} ر.ي</dd>
           <dt className="text-ink-500">المفضلة</dt><dd className="font-bold">{state.favorites.size}</dd>
           <dt className="text-ink-500">الطلبات</dt><dd className="font-bold">{state.orders.length}</dd>
-          <dt className="text-ink-500">المصادقة</dt><dd className="font-bold">{state.auth.status === 'authenticated' ? 'مسجّل' : 'زائر'}</dd>
+          <dt className="text-ink-500">المصادقة</dt><dd className="font-bold">{state.auth.status === 'authenticated' ? (state.merchantStatus === 'approved' ? 'مسجّل · تاجر' : 'مسجّل · عميل') : 'زائر'}</dd>
         </dl>
       </div>
 

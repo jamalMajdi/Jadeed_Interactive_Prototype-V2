@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { CURRENCY, fmt, productById } from '../data/mock'
+import { CURRENCY, PAYMENT_STATUS, fmt, productById, storeById } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  الشعار الرسمي لمنصة «جديد» — public/assets/logo.png (الاسم + العلامة، خلفية شفافة) يُعرض كما هو بلا قصّ أو تمطيط
@@ -95,13 +95,15 @@ export function TopBar({ title, subtitle, code, onBack, right, light = false, tr
 
 // ─────────────────────────────────────────────────────────────
 //  شريط التنقل السفلي الموحّد — ترتيب ثابت في RTL:
-//  الرئيسية · البحث · المفضلة · طلباتي · حسابي
+//  الرئيسية · المتاجر · المفضلة · طلباتي · حسابي
+//  (البحث متاح من رأس الرئيسية وشاشة المتاجر — تبويب «المتاجر» وصول مباشر لكل المتاجر)
+//  المفضلة/طلباتي تتطلبان تسجيل الدخول؛ الرئيسية والمتاجر وحسابي متاحة للزائر
 // ─────────────────────────────────────────────────────────────
 const CUSTOMER_TABS = [
   { key: 'home', label: 'الرئيسية', Icon: Home },
-  { key: 'search', label: 'البحث', Icon: Search },
-  { key: 'favorites', label: 'المفضلة', Icon: Heart, badge: 'favorites' },
-  { key: 'orders', label: 'طلباتي', Icon: ReceiptText, badge: 'orders' },
+  { key: 'nearbyStores', label: 'المتاجر', Icon: Store },
+  { key: 'favorites', label: 'المفضلة', Icon: Heart, badge: 'favorites', auth: 'المفضلة تحتاج تسجيل الدخول' },
+  { key: 'orders', label: 'طلباتي', Icon: ReceiptText, badge: 'orders', auth: 'سجّل الدخول لمتابعة طلباتك' },
   { key: 'account', label: 'حسابي', Icon: User },
 ]
 const MERCHANT_TABS = [
@@ -113,20 +115,25 @@ const MERCHANT_TABS = [
 ]
 
 export function BottomNav({ variant = 'customer' }) {
-  const { current, switchTab, state, navigate } = useApp()
-  const go = (key) => (variant === 'merchant' && key === 'account' ? navigate('account', { merchant: true }, { resetTo: true }) : switchTab(key))
+  const { current, switchTab, state, navigate, requireAuth, isAuthenticated } = useApp()
   const tabs = variant === 'merchant' ? MERCHANT_TABS : CUSTOMER_TABS
+  const go = (tab) => {
+    if (variant === 'merchant' && tab.key === 'account') return navigate('account', { merchant: true }, { resetTo: true })
+    if (tab.auth && !requireAuth({ name: tab.key, params: {} }, tab.auth)) return
+    switchTab(tab.key)
+  }
   const activeOrders = state.orders.filter((o) => !['delivered', 'cancelled', 'rejected'].includes(o.stage)).length
-  const badges = { favorites: state.favorites.size, orders: activeOrders, 'm-orders': state.orders.filter((o) => o.stage === 'new').length }
+  const badges = { favorites: isAuthenticated ? state.favorites.size : 0, orders: isAuthenticated ? activeOrders : 0, 'm-orders': state.orders.filter((o) => o.stage === 'new').length }
   const activeKey = current.params?.tab || current.name
   return (
     <nav className="absolute inset-x-0 bottom-0 px-3 pb-6 pt-2 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none">
       <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-[20px] shadow-elevated border border-ink-100 h-[62px] grid grid-cols-5">
-        {tabs.map(({ key, label, Icon, badge }) => {
+        {tabs.map((tab) => {
+          const { key, label, Icon, badge } = tab
           const active = activeKey === key
           const count = badge ? badges[badge] : 0
           return (
-            <button key={key} onClick={() => go(key)} className="relative flex flex-col items-center justify-center gap-1 transition active:scale-95" aria-current={active ? 'page' : undefined}>
+            <button key={key} onClick={() => go(tab)} className="relative flex flex-col items-center justify-center gap-1 transition active:scale-95" aria-current={active ? 'page' : undefined}>
               <div className={`relative w-9 h-6 flex items-center justify-center rounded-lg ${active ? 'bg-primary-50' : ''}`}>
                 <Icon size={20} strokeWidth={active ? 2.4 : 1.9} className={active ? 'text-primary' : 'text-ink-400'} fill={active && key === 'favorites' ? 'currentColor' : 'none'} />
                 {count > 0 && (
@@ -173,18 +180,60 @@ export function Chip({ children, tone = 'ink', className = '' }) {
 }
 
 export function StageChip({ stage }) {
+  // دورة حياة مبسّطة: جديد → قيد التجهيز → في الطريق → تم التوصيل (+ ملغي / مرفوض)
   const map = {
     new: ['جديد', 'ink'],
-    accepted: ['مقبول', 'info'],
-    preparing: ['قيد التحضير', 'warning'],
-    ready: ['جاهز للاستلام', 'primary'],
-    out: ['جاري التوصيل', 'secondary'],
+    preparing: ['قيد التجهيز', 'warning'],
+    out: ['في الطريق', 'secondary'],
     delivered: ['تم التوصيل', 'success'],
     cancelled: ['ملغي', 'danger'],
     rejected: ['مرفوض', 'danger'],
   }
   const [label, tone] = map[stage] || [stage, 'ink']
   return <Chip tone={tone}>{label}</Chip>
+}
+
+export function PaymentChip({ status }) {
+  const p = PAYMENT_STATUS[status]
+  if (!p) return null
+  return <Chip tone={p.tone}>{p.label}</Chip>
+}
+
+// ─────────────────────────────────────────────────────────────
+//  معاينة موقع المتجر على خريطة (مصغّرة، بلا شبكة) — تُستخدم في صفحة المتجر ونموذج التاجر
+//  location: { lat, lng, x, y, label } حيث x/y نسب مئوية لموضع الدبوس داخل المعاينة
+// ─────────────────────────────────────────────────────────────
+export function StoreMapPreview({ location, height = 120, className = '', onClick }) {
+  const x = location?.x ?? 50
+  const y = location?.y ?? 50
+  const Tag = onClick ? 'button' : 'div'
+  return (
+    <Tag onClick={onClick} className={`relative w-full overflow-hidden rounded-card border border-ink-100 text-right ${className}`} style={{ height, backgroundColor: '#EEF1F5', backgroundImage: 'linear-gradient(#fff 2px, transparent 2px), linear-gradient(90deg, #fff 2px, transparent 2px)', backgroundSize: '26px 26px' }} aria-label={location?.label ? `موقع المتجر: ${location.label}` : 'موقع المتجر'}>
+      <div className="absolute left-[-10%] top-[35%] w-[120%] h-3 bg-white rotate-[-7deg]" />
+      <div className="absolute left-[-10%] top-[68%] w-[120%] h-4 bg-white rotate-[5deg]" />
+      <div className="absolute left-[30%] top-[-10%] w-4 h-[120%] bg-white rotate-[10deg]" />
+      <div className="absolute right-[10%] top-[14%] w-16 h-10 rounded-md bg-success-100/70" />
+      <div className="absolute left-[8%] bottom-[16%] w-20 h-12 rounded-md bg-success-100/70" />
+      {location ? (
+        <div className="absolute -translate-x-1/2 -translate-y-full flex flex-col items-center animate-pop" style={{ left: `${x}%`, top: `${y}%` }}>
+          <div className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center shadow-accent ring-4 ring-white"><MapPin size={15} strokeWidth={2.4} fill="currentColor" /></div>
+          <div className="w-3 h-1 rounded-full bg-ink-900/20 mt-0.5" />
+        </div>
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <div className="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center shadow-card border-2 border-dashed border-primary-300"><MapPin size={18} strokeWidth={2.2} /></div>
+          <p className="text-[11px] font-bold text-primary mt-2 bg-white/90 rounded-full px-3 py-1 shadow-card">انقر لتثبيت موقع المتجر على الخريطة</p>
+        </div>
+      )}
+      {location?.label && (
+        <div className="absolute bottom-2 right-2 left-2 bg-white/95 backdrop-blur rounded-xl px-2.5 h-8 flex items-center gap-1.5 text-[10px] font-bold text-ink-800 shadow-card">
+          <Navigation size={12} className="text-primary shrink-0" />
+          <span className="truncate">{location.label}</span>
+          {location.lat && <span className="mr-auto text-[9px] font-medium text-ink-400 tabular" dir="ltr">{location.lat}, {location.lng}</span>}
+        </div>
+      )}
+    </Tag>
+  )
 }
 
 export function SectionHeader({ title, action, onAction, subtitle }) {
@@ -346,12 +395,13 @@ export function Toast() {
 }
 
 export function FavoriteButton({ productId, className = '' }) {
-  const { isFavorite, dispatch, showToast } = useApp()
-  const fav = isFavorite(productId)
+  const { isFavorite, dispatch, showToast, requireAuth, isAuthenticated } = useApp()
+  const fav = isAuthenticated && isFavorite(productId)
   return (
     <button
       onClick={(e) => {
         e.stopPropagation()
+        if (!requireAuth(undefined, 'سجّل الدخول لحفظ المنتجات في المفضلة')) return
         dispatch({ type: 'TOGGLE_FAVORITE', productId })
         showToast(fav ? 'أُزيل من المفضلة' : 'أُضيف إلى المفضلة', fav ? 'dark' : 'primary')
       }}
@@ -385,7 +435,29 @@ export function AddToCartButton({ product, size = 'xs', full = false }) {
   )
 }
 
-export function ProductCard({ product, onOpen }) {
+// سطر «المتجر / الشركة» فوق اسم المنتج — يفتح صفحة المتجر عند النقر
+export function StoreLine({ storeId, onOpenStore, className = '' }) {
+  const { navigate } = useApp()
+  const store = storeById(storeId)
+  if (!store) return null
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        onOpenStore ? onOpenStore(store) : navigate('store', { id: store.id })
+      }}
+      className={`flex items-center gap-1 text-[10px] font-bold text-primary max-w-full ${className}`}
+      aria-label={`متجر ${store.name}`}
+    >
+      <Store size={11} strokeWidth={2.4} className="shrink-0" />
+      <span className="truncate">{store.name}</span>
+      {store.verified && <ShieldCheck size={10} className="shrink-0 text-primary" />}
+    </button>
+  )
+}
+
+export function ProductCard({ product, onOpen, onOpenStore }) {
   const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0
   return (
     <div onClick={() => onOpen(product)} className="card overflow-hidden cursor-pointer active:scale-[0.98] transition">
@@ -396,7 +468,7 @@ export function ProductCard({ product, onOpen }) {
         {discount > 0 && !product.badge && <Chip tone="solidSecondary" className="absolute top-2 right-2">خصم {discount}%</Chip>}
       </div>
       <div className="p-2.5">
-        <p className="text-[10px] text-ink-400 font-medium truncate">{productById(product.id) && (product.category === 'electronics' ? 'إلكترونيات' : product.category === 'beauty' ? 'عطور وجمال' : product.category === 'food' ? 'مواد غذائية' : product.category === 'fashion' ? 'أزياء' : 'أدوات منزلية')}</p>
+        <StoreLine storeId={product.storeId} onOpenStore={onOpenStore} />
         <h4 className="text-[12px] font-bold text-ink-900 leading-snug line-clamp-2 min-h-[34px]">{product.shortName}</h4>
         <div className="mt-1.5 flex items-center justify-between gap-1">
           <Price value={product.price} size="sm" tone="primary" old={product.oldPrice} />

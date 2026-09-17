@@ -9,7 +9,7 @@ import { PRODUCTS, STORES } from '../data/mock'
 // ─────────────────────────────────────────────────────────────
 const CUSTOMER_TABS = [
   ['الرئيسية', Home],
-  ['البحث', Search],
+  ['المتاجر', Store],
   ['المفضلة', Heart, 2],
   ['طلباتي', ReceiptText, 1],
   ['حسابي', User],
@@ -80,7 +80,7 @@ export function ComponentsShowcase() {
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-4 pb-8">
         {section === 'nav' && (
           <>
-            <Section title="شريط تنقّل العميل (RTL · 5 تبويبات)" note="ترتيب ثابت في كل الشاشات: الرئيسية · البحث · المفضلة · طلباتي · حسابي — اضغط للتبديل">
+            <Section title="شريط تنقّل العميل (RTL · 5 تبويبات)" note="ترتيب ثابت في كل الشاشات: الرئيسية · المتاجر · المفضلة · طلباتي · حسابي — اضغط للتبديل (البحث من رأس الرئيسية وشاشة المتاجر)">
               <NavPreview tabs={CUSTOMER_TABS} activeIdx={0} />
             </Section>
             <Section title="شريط تنقّل التاجر" note="نفس البنية والأيقونات الموحّدة مع شارة الطلبات الجديدة">
@@ -160,7 +160,7 @@ export function ComponentsShowcase() {
                 <Chip tone="solidSecondary">خصم 18%</Chip>
               </div>
               <div className="flex flex-wrap gap-2">
-                {['new', 'accepted', 'preparing', 'ready', 'out', 'delivered', 'cancelled', 'rejected'].map((s) => <StageChip key={s} stage={s} />)}
+                {['new', 'preparing', 'out', 'delivered', 'cancelled', 'rejected'].map((s) => <StageChip key={s} stage={s} />)}
               </div>
               <div className="flex flex-wrap gap-2 items-center">
                 <VerifiedBadge /> <Rating value={4.9} count={312} />

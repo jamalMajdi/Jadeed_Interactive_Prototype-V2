@@ -8,6 +8,7 @@ import {
   SEED_ORDERS,
   STAGE_INDEX,
   productById,
+  storeById,
 } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ const initialState = {
   // التنقل: مكدس شاشات يسمح بالرجوع
   stack: [{ name: 'splash' }],
   // المصادقة
-  auth: { status: 'guest', accountType: 'customer', email: '', otpAttempts: 0, lockedUntil: null },
+  auth: { status: 'guest', accountType: 'customer', email: '', otpAttempts: 0, lockedUntil: null, returnTo: null },
   // السلة: { productId: qty }
   cart: {},
   coupon: null,
@@ -37,7 +38,8 @@ const initialState = {
   orderCounter: 984210,
   // التاجر
   merchantProducts: PRODUCTS.filter((p) => p.storeId === 'st-tech').map((p) => p.id),
-  merchantStatus: 'approved', // none | pending | approved | rejected
+  // none | pending | approved | rejected — يصبح approved فقط عند حساب تاجر (نوع الحساب تاجر/كلاهما) أو بعد اعتماد طلب المتجر
+  merchantStatus: 'none',
   seenNotifications: false,
   catalogVersion: 0, // يزداد عند تعديل كتالوج المنتجات لإعادة حساب السلة
 }
@@ -72,10 +74,21 @@ function reducer(state, action) {
     }
     case 'OTP_RESET':
       return { ...state, auth: { ...state.auth, otpAttempts: 0, lockedUntil: null } }
-    case 'LOGIN':
-      return { ...state, auth: { ...state.auth, status: 'authenticated', otpAttempts: 0, lockedUntil: null } }
+    case 'LOGIN': {
+      const isMerchantAccount = ['merchant', 'both'].includes(state.auth.accountType)
+      return {
+        ...state,
+        auth: { ...state.auth, status: 'authenticated', otpAttempts: 0, lockedUntil: null },
+        merchantStatus: isMerchantAccount ? 'approved' : state.merchantStatus,
+      }
+    }
+    case 'AUTH_GATE': // حفظ الوجهة للعودة إليها بعد تسجيل الدخول
+      return { ...state, auth: { ...state.auth, returnTo: action.returnTo || null } }
+    case 'CLEAR_RETURN_TO':
+      return { ...state, auth: { ...state.auth, returnTo: null } }
     case 'LOGOUT':
-      return { ...initialState, stack: [{ name: 'login' }], orders: state.orders }
+      // الخروج لا يجبر على الدخول مجدداً: يعود المستخدم للتصفح كزائر
+      return { ...initialState, stack: [{ name: 'home' }], orders: state.orders }
 
     // ── السلة ─────────────────────────────────────────────────
     case 'ADD_TO_CART': {
@@ -126,6 +139,19 @@ function reducer(state, action) {
       const counter = state.orderCounter
       const order = { ...action.order, id: `JD-${counter}`, stage: 'new', createdAt: 'الآن' }
       return { ...state, orders: [order, ...state.orders], orderCounter: counter + 1, cart: {}, coupon: null }
+    }
+    case 'PLACE_ORDERS': {
+      // طلب مستقل لكل متجر — لا تُخلط طلبات المتاجر في طلب واحد
+      let counter = state.orderCounter
+      const created = action.orders.map((o) => ({ ...o, id: `JD-${counter++}`, stage: 'new', createdAt: 'الآن' }))
+      return { ...state, orders: [...created, ...state.orders], orderCounter: counter, cart: {}, coupon: null }
+    }
+    case 'CONFIRM_PAYMENT': {
+      // تأكيد التاجر لاستلام التحويل: يُثبت الدفع وينقل الطلب مباشرة إلى التجهيز دون خطوة يدوية إضافية
+      return {
+        ...state,
+        orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, paymentStatus: 'paid', stage: o.stage === 'new' ? 'preparing' : o.stage } : o)),
+      }
     }
     case 'SET_ORDER_STAGE': {
       return {
@@ -182,7 +208,37 @@ export function computeCart(cart, couponCode) {
   const deliveryFee = lines.length ? DELIVERY_FEE_INSIDE_CITY : 0
   const total = Math.max(0, subtotal - discount + deliveryFee)
 
-  return { lines, subtotal, itemCount, discount, coupon, couponCode: coupon ? couponCode : null, deliveryFee, total }
+  // ── تجميع السلة حسب المتجر: كل متجر بمنتجاته ومجموعه الفرعي (ويُنشأ له طلب مستقل عند الدفع) ──
+  const byStore = new Map()
+  lines.forEach((l) => {
+    const sid = l.product.storeId
+    if (!byStore.has(sid)) byStore.set(sid, [])
+    byStore.get(sid).push(l)
+  })
+  let allocated = 0
+  const groups = [...byStore.entries()].map(([storeId, gl], i, arr) => {
+    const store = storeById(storeId)
+    const gSubtotal = gl.reduce((s, l) => s + l.lineTotal, 0)
+    const gItems = gl.reduce((s, l) => s + l.qty, 0)
+    // توزيع الخصم على المتاجر بنسبة مجموع كل متجر (آخر متجر يمتص فرق التقريب)
+    const isLast = i === arr.length - 1
+    const gDiscount = !discount ? 0 : isLast ? discount - allocated : Math.round((discount * gSubtotal) / subtotal)
+    allocated += gDiscount
+    const gDelivery = DELIVERY_FEE_INSIDE_CITY
+    return {
+      storeId,
+      store,
+      lines: gl,
+      subtotal: gSubtotal,
+      itemCount: gItems,
+      discount: gDiscount,
+      deliveryFee: gDelivery,
+      total: Math.max(0, gSubtotal - gDiscount + gDelivery),
+      minOrderMet: !store || gSubtotal >= (store.minOrder || 0),
+    }
+  })
+
+  return { lines, groups, storeCount: groups.length, subtotal, itemCount, discount, coupon, couponCode: coupon ? couponCode : null, deliveryFee, total }
 }
 
 // تعديلات كتالوج المنتجات المشترك تتم هنا (خارج الـ reducer النقي) وبشكل idempotent
@@ -209,6 +265,8 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
   }, [])
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   const showToast = useCallback((message, tone = 'dark') => {
     clearTimeout(toastTimer.current)
@@ -220,15 +278,29 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
   const back = useCallback(() => dispatch({ type: 'BACK' }), [])
   const switchTab = useCallback((tab) => dispatch({ type: 'SWITCH_TAB', tab }), [])
 
+  // بوابة تسجيل الدخول: تُستدعى فقط عند الحاجة (المفضلة، الطلبات، إتمام الشراء…)
+  // تعيد true إذا كان المستخدم مسجّلاً، وإلا تحفظ الوجهة وتفتح شاشة الدخول
+  const requireAuth = useCallback(
+    (returnTo, message = 'سجّل الدخول للمتابعة') => {
+      if (stateRef.current.auth.status === 'authenticated') return true
+      dispatch({ type: 'AUTH_GATE', returnTo: returnTo || stateRef.current.stack[stateRef.current.stack.length - 1] })
+      showToast(message, 'primary')
+      dispatch({ type: 'NAVIGATE', screen: { name: 'login', params: { gated: true } } })
+      return false
+    },
+    [showToast],
+  )
+
   const cartSummary = useMemo(() => computeCart(state.cart, state.coupon), [state.cart, state.coupon, state.catalogVersion])
 
   // محاكاة تقدم الطلب تلقائيًا (كأن التاجر يعالجه) — يمكن للتاجر تسريعه يدويًا من لوحته
-  // جديد → مقبول: 25 ث · ثم كل 15 ث مرحلة · خرج للتوصيل → تم التوصيل: 40 ث
-  const AUTO_DELAYS = { new: 25000, accepted: 15000, preparing: 15000, ready: 15000, out: 40000 }
+  // دورة مبسّطة: جديد → قيد التجهيز (30 ث) → في الطريق (30 ث) → تم التوصيل (40 ث)
+  // الطلبات المدفوعة بالتحويل تنتظر تأكيد التاجر ولا تتقدم تلقائياً من «جديد»
+  const AUTO_DELAYS = { new: 30000, preparing: 30000, out: 40000 }
   useEffect(() => {
     if (!autoAdvance) return undefined
     const timers = state.orders
-      .filter((o) => AUTO_DELAYS[o.stage] !== undefined)
+      .filter((o) => AUTO_DELAYS[o.stage] !== undefined && !(o.stage === 'new' && o.paymentStatus === 'pending_confirmation'))
       .map((o) =>
         setTimeout(() => {
           const nextStage = ORDER_STAGES[STAGE_INDEX[o.stage] + 1]?.key
@@ -250,13 +322,16 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       canGoBack: state.stack.length > 1,
       cart: cartSummary,
       cartCount: cartSummary.itemCount,
+      isAuthenticated: state.auth.status === 'authenticated',
+      isMerchant: state.merchantStatus === 'approved',
+      requireAuth,
       isFavorite: (id) => state.favorites.has(id),
       toast,
       showToast,
       addressById: (id) => state.addresses.find((a) => a.id === id),
       currentAddress: state.addresses.find((a) => a.id === state.addressId),
     }),
-    [state, cartSummary, navigate, back, switchTab, toast, showToast],
+    [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

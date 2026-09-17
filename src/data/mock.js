@@ -33,6 +33,12 @@ export const STORES = [
     minOrder: 15000,
     description: 'المتجر الرسمي الرائد في بيع أحدث الإلكترونيات والسماعات والساعات الذكية الأصلية مع ضمان سنتين.',
     cover: '/img/store-cover.jpg',
+    owner: 'محمد سعيد',
+    ownerAccount: 'mohammed.saeed@gmail.com',
+    phone: '777 200 300',
+    deliveryTime: '45-60 دقيقة',
+    location: { lat: 13.5795, lng: 44.0210, x: 52, y: 44, label: 'شارع جمال، جوار بريد تعز المركزي' },
+    payment: { bank: 'بنك الكريمي للتمويل الأصغر', account: 'KR-3001-778899-01', holder: 'محمد سعيد الحميري', wallet: 'جوالي · 777 200 300' },
     initials: 'متجر التكنولوجيا',
   },
   {
@@ -49,6 +55,12 @@ export const STORES = [
     minOrder: 5000,
     description: 'أجود العطور الشرقية والعود والمسك الأصلي من مصادر موثوقة.',
     cover: null,
+    owner: 'سلوى العريقي',
+    ownerAccount: 'aljazeera.perfume@gmail.com',
+    phone: '771 480 210',
+    deliveryTime: '35-50 دقيقة',
+    location: { lat: 13.5712, lng: 44.0164, x: 38, y: 58, label: 'حوض الأشراف، مقابل جامع النور' },
+    payment: { bank: 'بنك التضامن', account: 'TD-1120-556677-02', holder: 'سلوى عبده العريقي', wallet: 'كاش · 771 480 210' },
     initials: 'عطور الجزيرة',
   },
   {
@@ -65,6 +77,12 @@ export const STORES = [
     minOrder: 3000,
     description: 'بن يمني معطر وأدوات تحضير القهوة للمنزل والمكتب.',
     cover: null,
+    owner: 'أمين الشرعبي',
+    ownerAccount: 'barista.home.tz@gmail.com',
+    phone: '733 905 118',
+    deliveryTime: '25-40 دقيقة',
+    location: { lat: 13.5828, lng: 44.0257, x: 61, y: 36, label: 'المسبح، شارع 26 سبتمبر' },
+    payment: { bank: 'بنك الكريمي للتمويل الأصغر', account: 'KR-3001-224488-07', holder: 'أمين قائد الشرعبي', wallet: 'جوالي · 733 905 118' },
     initials: 'عالم الباريستا',
   },
   {
@@ -81,6 +99,12 @@ export const STORES = [
     minOrder: 10000,
     description: 'ألعاب وإكسسوارات للاعبين.',
     cover: null,
+    owner: 'هشام المخلافي',
+    ownerAccount: 'gamershub.ye@gmail.com',
+    phone: '770 312 645',
+    deliveryTime: '50-70 دقيقة',
+    location: { lat: 13.5769, lng: 44.0135, x: 30, y: 40, label: 'التحرير، خلف مجمع الأمل' },
+    payment: { bank: 'بنك اليمن والكويت', account: 'YK-4400-901122-03', holder: 'هشام علي المخلافي', wallet: 'كاش · 770 312 645' },
     initials: 'جيمرز هاب',
   },
   {
@@ -97,6 +121,12 @@ export const STORES = [
     minOrder: 8000,
     description: 'قطع ديكور ومستلزمات منزلية عصرية.',
     cover: null,
+    owner: 'نجوى الصبري',
+    ownerAccount: 'decor.rawaea@gmail.com',
+    phone: '712 660 934',
+    deliveryTime: '60-90 دقيقة',
+    location: { lat: 13.5883, lng: 44.0301, x: 70, y: 62, label: 'بير باشا، جولة القصر' },
+    payment: { bank: 'بنك التضامن', account: 'TD-1120-334455-09', holder: 'نجوى محمد الصبري', wallet: 'كاش · 712 660 934' },
     initials: 'روائع الديكور',
   },
 ]
@@ -297,13 +327,21 @@ export const COURIER = {
 
 // مراحل دورة حياة الطلب (موحّدة بين واجهة العميل ولوحة التاجر)
 export const ORDER_STAGES = [
-  { key: 'new', label: 'جديد', desc: 'تم تسجيل الطلب في نظام جديد بنجاح' },
-  { key: 'accepted', label: 'مقبول', desc: `تم قبول الطلب من قبل المتجر في ${CITY}` },
-  { key: 'preparing', label: 'قيد التحضير', desc: 'جاري تجهيز وتغليف المنتجات بعناية' },
-  { key: 'ready', label: 'جاهز', desc: 'الطلب جاهز لاستلام مندوب التوصيل' },
-  { key: 'out', label: 'خرج للتوصيل', desc: 'مندوب التوصيل في طريقه إلى عنوانك' },
-  { key: 'delivered', label: 'تم التوصيل', desc: 'استلام الشحنة وتأكيد التسليم بنجاح' },
+  { key: 'new', label: 'جديد', desc: 'تم إرسال الطلب إلى المتجر وهو بانتظار القبول' },
+  { key: 'preparing', label: 'قيد التجهيز', desc: 'قبل المتجر الطلب ويجري تجهيزه وتغليفه الآن' },
+  { key: 'out', label: 'في الطريق', desc: 'مندوب التوصيل في طريقه إلى عنوانك' },
+  { key: 'delivered', label: 'تم التوصيل', desc: 'تم تسليم الطلب بنجاح' },
 ]
+// حالات نهائية خارج المسار: cancelled (ألغاه العميل قبل التجهيز) · rejected (اعتذر المتجر)
+// انتقالان يدويان فقط من التاجر: قبول وبدء التجهيز ← ثم تسليم للمندوب (والتسليم النهائي يُؤكَّد تلقائياً أو من التاجر)
+
+// حالة الدفع الموحّدة للطلب
+export const PAYMENT_STATUS = {
+  cod: { label: 'الدفع عند الاستلام', tone: 'ink' },
+  wallet: { label: 'مدفوع من المحفظة', tone: 'success' },
+  pending_confirmation: { label: 'بانتظار تأكيد التاجر للتحويل', tone: 'warning' },
+  paid: { label: 'تم تأكيد استلام المبلغ', tone: 'success' },
+}
 
 export const STAGE_INDEX = Object.fromEntries(ORDER_STAGES.map((s, i) => [s.key, i]))
 
@@ -320,6 +358,7 @@ export const SEED_ORDERS = [
     total: 18200,
     stage: 'delivered',
     payment: 'الدفع نقداً عند الاستلام',
+    paymentStatus: 'cod',
     addressId: 'a1',
     coupon: null,
   },
@@ -337,6 +376,7 @@ export const SEED_ORDERS = [
     total: 16500,
     stage: 'delivered',
     payment: 'الدفع نقداً عند الاستلام',
+    paymentStatus: 'cod',
     addressId: 'a2',
     coupon: null,
   },
@@ -395,6 +435,7 @@ export const makeSampleOrder = (stage = 'new', overrides = {}) => ({
   total: 42160,
   stage,
   payment: 'الدفع نقداً عند الاستلام',
+  paymentStatus: 'cod',
   addressId: 'a1',
   coupon: 'JADEED20',
   ...overrides,

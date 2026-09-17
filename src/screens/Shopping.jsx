@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
-import { MapPin, Navigation, Check, Plus, ChevronLeft, Search, SlidersHorizontal, Bell, ShoppingBag, Sparkles, ArrowRight, Store, X, Heart, Trash2, ShieldCheck, Clock, LocateFixed, MapPinOff, ShoppingCart, Filter, PackageX } from 'lucide-react'
+import { MapPin, Navigation, Check, Plus, ChevronLeft, Search, SlidersHorizontal, Bell, ShoppingBag, Sparkles, ArrowRight, Store, X, Heart, Trash2, ShieldCheck, Clock, LocateFixed, MapPinOff, ShoppingCart, Filter, PackageX, Phone, Truck, UserRound, Info } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, SectionHeader, ProductThumb, StoreAvatar, Rating, VerifiedBadge, StateScreen, ProductCard, FavoriteButton, AddToCartButton, Stepper, KeyValue, Logo } from '../components/ui'
+import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, SectionHeader, ProductThumb, StoreAvatar, Rating, VerifiedBadge, StateScreen, ProductCard, FavoriteButton, AddToCartButton, Stepper, KeyValue, Logo, StoreMapPreview } from '../components/ui'
 import { AREAS, CATEGORIES, CITY, PRODUCTS, STORES, TRENDING_SEARCHES, productById, storeById, fmt } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ export function MapPinScreen() {
 //  الرئيسية — المتجر المعتمد تعز
 // ─────────────────────────────────────────────────────────────
 export function Home() {
-  const { navigate, currentAddress, cartCount, state } = useApp()
+  const { navigate, switchTab, currentAddress, cartCount, state } = useApp()
   const [cat, setCat] = useState('all')
   const featured = useMemo(() => PRODUCTS.filter((p) => !p.deleted && (cat === 'all' || p.category === cat) && p.stock > 0), [cat, state.catalogVersion])
   const unread = state.seenNotifications ? 0 : 3
@@ -310,7 +310,7 @@ export function Home() {
 
         {/* المتاجر المعتمدة */}
         <div className="px-4 pt-5">
-          <SectionHeader title={`المتاجر المعتمدة في ${CITY}`} subtitle="تسوق مباشرة من أشهر متاجر المدينة" action="استكشاف" onAction={() => navigate('nearbyStores')} />
+          <SectionHeader title={`المتاجر المعتمدة في ${CITY}`} subtitle="تسوق مباشرة من أشهر متاجر المدينة" action="كل المتاجر" onAction={() => switchTab('nearbyStores')} />
           <div className="grid grid-cols-2 gap-3">
             {STORES.filter((s) => s.verified).slice(0, 2).map((s) => (
               <button key={s.id} onClick={() => navigate('store', { id: s.id })} className="card overflow-hidden text-right active:scale-[0.98] transition">
@@ -354,13 +354,17 @@ export function Home() {
 //  المتاجر القريبة (CUS-017) / لا توجد (CUS-018)
 // ─────────────────────────────────────────────────────────────
 export function NearbyStores() {
-  const { navigate, current } = useApp()
+  const { navigate, current, canGoBack } = useApp()
   const [area, setArea] = useState(current.params?.area || 'الكل')
   const list = STORES.filter((s) => area === 'الكل' || s.area === area)
   return (
-    <div className="flex-1 flex flex-col bg-ink-50">
+    <div className="flex-1 flex flex-col bg-ink-50 relative">
       <StatusBar />
-      <TopBar title="المتاجر القريبة منك" code="CUS-017" />
+      <TopBar
+        title={canGoBack ? 'المتاجر القريبة منك' : 'المتاجر'}
+        subtitle={`${STORES.length} متاجر معتمدة في ${CITY} — اختر الحي أو ابحث`}
+        right={<button onClick={() => navigate('search')} className="icon-btn" aria-label="البحث"><Search size={18} strokeWidth={2.4} /></button>}
+      />
       <div className="bg-white border-b border-ink-100 px-4 py-2.5 flex gap-2 overflow-x-auto no-scrollbar">
         {AREAS.map((a) => (
           <button key={a} onClick={() => setArea(a)} className={`h-8 px-3.5 rounded-full text-[12px] font-bold whitespace-nowrap ${area === a ? 'bg-primary text-white' : 'bg-ink-100 text-ink-700'}`}>
@@ -369,16 +373,15 @@ export function NearbyStores() {
         ))}
       </div>
       {list.length ? (
-        <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-2.5">
+        <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-2.5">
           {list.map((s) => (
             <button key={s.id} onClick={() => navigate('store', { id: s.id })} className="w-full card p-3 flex items-center gap-3 text-right active:scale-[0.99] transition">
               <StoreAvatar store={s} size={52} />
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-ink-900 truncate">{s.name}</p>
-                <p className="text-[11px] font-medium text-ink-500">{s.area} · {s.prepTime}</p>
+                <p className="text-[13px] font-bold text-ink-900 truncate flex items-center gap-1">{s.name} {s.verified && <ShieldCheck size={13} className="text-primary shrink-0" />}</p>
+                <p className="text-[11px] font-medium text-ink-500 flex items-center gap-1"><MapPin size={11} /> {s.area} · <Truck size={11} /> {s.deliveryTime}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Chip tone={s.open ? 'success' : 'danger'}>{s.open ? 'مفتوح' : 'مغلق'}</Chip>
-                  <Chip tone="ink">التوصيل</Chip>
                   <Rating value={s.rating} />
                 </div>
               </div>
@@ -387,14 +390,14 @@ export function NearbyStores() {
           ))}
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-24">
           <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><Store size={40} strokeWidth={1.6} /></div>
           <h2 className="text-[20px] font-extrabold">لا توجد متاجر في هذا النطاق حالياً</h2>
           <p className="text-[12px] text-ink-500 mt-2">نعمل على تغطية كافة أحياء {CITY} قريباً. يمكنك تغيير الحي للاطلاع على المتاجر المجاورة.</p>
           <button onClick={() => setArea('الكل')} className="btn-primary btn-md mt-6">عرض كل الأحياء</button>
         </div>
       )}
-      <HomeIndicator />
+      <BottomNav />
     </div>
   )
 }
@@ -496,6 +499,39 @@ export function StoreScreen() {
           </div>
         </div>
 
+        {/* معلومات المتجر: الوصف · التواصل · وقت التوصيل · الموقع على الخريطة */}
+        <div className="px-4 pt-3 space-y-3">
+          <div className="card p-4">
+            <p className="text-[13px] font-extrabold text-ink-900 flex items-center gap-1.5 mb-1.5"><Info size={14} className="text-primary" /> عن المتجر</p>
+            <p className="text-[12px] font-medium text-ink-600 leading-relaxed">{store.description}</p>
+            <div className="grid grid-cols-2 gap-2 mt-3 text-[11px]">
+              <div className="rounded-xl bg-ink-50 p-2.5 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-success-50 text-success flex items-center justify-center shrink-0"><Truck size={15} /></div>
+                <div className="min-w-0"><p className="text-ink-400 font-medium leading-none">وقت التوصيل المتوقع</p><p className="font-bold text-ink-900 mt-1 truncate">{store.deliveryTime}</p></div>
+              </div>
+              <div className="rounded-xl bg-ink-50 p-2.5 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary flex items-center justify-center shrink-0"><Clock size={15} /></div>
+                <div className="min-w-0"><p className="text-ink-400 font-medium leading-none">تجهيز الطلب</p><p className="font-bold text-ink-900 mt-1 truncate">{store.prepTime}</p></div>
+              </div>
+              <div className="rounded-xl bg-ink-50 p-2.5 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-secondary-50 text-secondary flex items-center justify-center shrink-0"><UserRound size={15} /></div>
+                <div className="min-w-0"><p className="text-ink-400 font-medium leading-none">صاحب المتجر</p><p className="font-bold text-ink-900 mt-1 truncate">{store.owner}</p></div>
+              </div>
+              <a href={`tel:${store.phone.replace(/\s/g, '')}`} className="rounded-xl bg-ink-50 p-2.5 flex items-center gap-2 active:bg-primary-50 transition" aria-label={`اتصال بالمتجر ${store.phone}`}>
+                <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center shrink-0"><Phone size={15} /></div>
+                <div className="min-w-0"><p className="text-ink-400 font-medium leading-none">رقم التواصل</p><p className="font-bold text-primary mt-1 tabular" dir="ltr">{store.phone}</p></div>
+              </a>
+            </div>
+          </div>
+          <div className="card p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[13px] font-extrabold text-ink-900 flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> موقع المتجر على الخريطة</p>
+              <span className="text-[11px] font-medium text-ink-500">{store.area}، {store.city}</span>
+            </div>
+            <StoreMapPreview location={store.location} height={128} />
+          </div>
+        </div>
+
         {/* قائمة المنتجات */}
         <div className="px-4 pt-5 pb-28">
           <div className="flex items-center justify-between mb-3">
@@ -507,7 +543,7 @@ export function StoreScreen() {
               <StoreProductCard key={p.id} product={p} onOpen={(pr) => navigate('product', { id: pr.id })} />
             ))}
           </div>
-          <p className="text-[11px] font-medium text-ink-400 text-center mt-4">الحد الأدنى للطلب من هذا المتجر {fmt(store.minOrder)} ر.ي · التجهيز {store.prepTime}</p>
+          <p className="text-[11px] font-medium text-ink-400 text-center mt-4">الحد الأدنى للطلب من هذا المتجر {fmt(store.minOrder)} ر.ي · التوصيل خلال {store.deliveryTime}</p>
         </div>
       </div>
 
@@ -560,9 +596,12 @@ export function ProductScreen() {
           </div>
         </div>
         <div className="px-5 pt-4 pb-32">
-          <button onClick={() => navigate('store', { id: store.id })} className="text-[13px] font-bold text-primary flex items-center gap-1">
-            <Store size={14} /> {store.name} <ChevronLeft size={14} />
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => navigate('store', { id: store.id })} className="text-[13px] font-bold text-primary flex items-center gap-1 min-w-0">
+              <Store size={14} className="shrink-0" /> <span className="truncate">{store.name}</span> <ChevronLeft size={14} className="shrink-0" />
+            </button>
+            <span className="text-[10px] font-bold text-success-700 flex items-center gap-1 whitespace-nowrap"><Truck size={12} /> التوصيل {store.deliveryTime}</span>
+          </div>
           <h1 className="text-[18px] font-extrabold text-ink-900 leading-snug mt-1">{product.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {soldOut ? <Chip tone="danger">نفدت الكمية</Chip> : <Chip tone="success">متوفر في المخزون ({product.stock})</Chip>}

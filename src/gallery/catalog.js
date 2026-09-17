@@ -7,6 +7,11 @@ import { PRODUCTS, SEED_ORDERS, makeSampleOrder } from '../data/mock'
 
 const AUTH_OK = { status: 'authenticated', accountType: 'customer', email: 'customer@jadeed.ye', otpAttempts: 0, lockedUntil: null }
 const AUTH_GUEST = { status: 'guest', accountType: 'customer', email: 'customer@jadeed.ye', otpAttempts: 0, lockedUntil: null }
+const AUTH_MERCHANT = { ...AUTH_OK, accountType: 'merchant', email: 'merchant@jadeed.ye' }
+const MERCHANT_STATE = { auth: AUTH_MERCHANT, merchantStatus: 'approved' }
+// سلة من متجرين (سماعات ×1 من التكنولوجيا + بن ×2 من الباريستا) لعرض الفصل حسب المتجر
+const MULTI_STORE_CART = { 'p-headphones': 1, 'p-coffee': 2 }
+const TRANSFER_ORDER = (stage = 'new') => [makeSampleOrder(stage, { payment: 'تحويل بنكي / محفظة إلى التاجر', paymentStatus: 'pending_confirmation', receipt: { name: 'receipt-st-tech.jpg', size: '1.2 ميجابايت' } }), ...SEED_ORDERS]
 const TECH_IDS = PRODUCTS.filter((p) => p.storeId === 'st-tech').map((p) => p.id)
 
 // سلة نموذجية: سماعات ×2 + ساعة ×1 = 87,200 (تُحسب رياضياً في computeCart)
@@ -44,6 +49,8 @@ export const GALLERY = [
       { key: 'register-errors', title: 'إنشاء حساب — أخطاء التحقق من الحقول', code: 'CUS-008', screen: 'register', params: { preset: 'errors' }, state: { auth: AUTH_GUEST }, stack: ['login'], figma: '11:577' },
       { key: 'register-success', title: 'تم إنشاء الحساب بنجاح', code: 'CUS-009', screen: 'registerSuccess', params: { name: 'محمد سعيد' }, figma: '11:655' },
       { key: 'register-failed', title: 'فشل حفظ الحساب', code: 'CUS-010', screen: 'registerFailed', stack: ['register'], figma: '11:701' },
+      { key: 'forgot-password', title: 'استعادة الحساب — نسيت بيانات الدخول', screen: 'forgotPassword', stack: ['login'], note: 'جديد (غير موجود في Figma) — الدخول بـ OTP لذا الاستعادة عبر قناة بديلة', figma: '—' },
+      { key: 'login-gated', title: 'تسجيل الدخول — مطلوب لإكمال إجراء (زائر)', screen: 'login', params: { gated: true }, state: { auth: AUTH_GUEST }, stack: ['home'], note: 'يظهر عند محاولة الزائر استخدام المفضلة/الطلبات/الدفع', figma: '—' },
     ],
   },
   {
@@ -85,18 +92,20 @@ export const GALLERY = [
     desc: 'السلة (حساب رياضي)، الدفع، حالات الطلب والتتبع والفاتورة',
     items: [
       { key: 'cart', title: 'سلة المشتريات', code: 'CUS-026', screen: 'cart', state: { cart: SAMPLE_CART }, stack: ['home'], note: '34,500×2 + 18,200 = 87,200 ر.ي', figma: '11:1973' },
+      { key: 'cart-multi-store', title: 'سلة المشتريات — مفصولة حسب المتجر (متجران)', screen: 'cart', state: { cart: MULTI_STORE_CART }, stack: ['home'], note: 'طلب مستقل لكل متجر مع مجموعه الفرعي', figma: '—' },
       { key: 'cart-coupon', title: 'سلة المشتريات — مع كوبون JADEED20', code: 'CUS-028', screen: 'cart', state: { cart: SAMPLE_CART, coupon: 'JADEED20' }, stack: ['home'], note: '87,200 − 17,440 = 69,760 ر.ي', figma: '11:2221' },
       { key: 'cart-empty', title: 'سلة المشتريات فارغة', code: 'CUS-027', screen: 'cart', state: { cart: {} }, stack: ['home'], figma: '11:2094' },
       { key: 'checkout', title: 'إتمام الطلب والدفع', screen: 'checkout', state: { cart: SAMPLE_CART, coupon: 'JADEED20' }, stack: ['home', 'cart'], figma: '11:2175' },
       { key: 'out-of-stock', title: 'المنتج غير متوفر', code: 'CUS-029', screen: 'outOfStock', params: { id: 'p-honey' }, state: { cart: { 'p-honey': 1 } }, stack: ['home'], figma: '11:2128' },
+      { key: 'checkout-transfer', title: 'إتمام الطلب — تحويل بنكي مع إيصال', screen: 'checkout', state: { cart: MULTI_STORE_CART }, stack: ['home', 'cart'], note: 'اختر «تحويل بنكي» لعرض بيانات حساب كل تاجر ورفع الإيصال', figma: '—' },
       { key: 'order-success', title: 'تم إنشاء الطلب بنجاح', code: 'CUS-031', screen: 'orderSuccess', params: { orderId: 'JD-984210' }, state: { orders: ORDER('new') }, figma: '11:2270' },
       { key: 'order-failed', title: 'فشل إتمام الطلب', code: 'CUS-032', screen: 'orderFailed', stack: ['home', 'checkout'], figma: '69:509', figmaAlt: '69:740' },
       { key: 'tracking', title: 'تتبع الشحنة المباشر (خرج للتوصيل)', code: 'CUS-033', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('out') }, stack: ['orders'], figma: '11:2392' },
       { key: 'tracking-preparing', title: 'حالة الطلب الحالية (قيد التحضير)', code: 'CUS-039', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('preparing') }, stack: ['orders'], figma: '13:3991' },
       { key: 'delivered', title: 'تم تسليم الطلب بنجاح', code: 'CUS-035', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('delivered') }, stack: ['orders'], figma: '11:2652' },
-      { key: 'orders', title: 'سجل طلباتي', code: 'CUS-036', screen: 'orders', state: { orders: ORDER('accepted') }, figma: '11:2543' },
+      { key: 'orders', title: 'سجل طلباتي', code: 'CUS-036', screen: 'orders', state: { orders: ORDER('preparing') }, figma: '11:2543' },
       { key: 'orders-empty', title: 'لا توجد طلبات سابقة', code: 'CUS-037', screen: 'orders', state: { orders: [] }, figma: '11:2711' },
-      { key: 'order-details', title: 'تفاصيل الفاتورة والطلب الكاملة', code: 'CUS-038', screen: 'orderDetails', params: { orderId: 'JD-984210' }, state: { orders: ORDER('accepted') }, stack: ['orders'], figma: '13:4061' },
+      { key: 'order-details', title: 'تفاصيل الفاتورة والطلب الكاملة', code: 'CUS-038', screen: 'orderDetails', params: { orderId: 'JD-984210' }, state: { orders: ORDER('preparing') }, stack: ['orders'], figma: '13:4061' },
       { key: 'order-cancelled', title: 'تم إلغاء الطلب', code: 'CUS-034', screen: 'orderCancelled', params: { orderId: 'JD-984210' }, state: { orders: ORDER('cancelled') }, figma: '11:2504' },
     ],
   },
@@ -107,8 +116,11 @@ export const GALLERY = [
     items: [
       { key: 'account', title: 'الملف الشخصي وإدارة الحساب', screen: 'account', figma: '13:3816' },
       { key: 'account-guest', title: 'الملف الشخصي — زائر غير مسجّل', screen: 'account', state: { auth: AUTH_GUEST, merchantStatus: 'none', favorites: new Set() }, figma: '13:3816' },
+      { key: 'account-merchant', title: 'الملف الشخصي — تاجر معتمد (بيانات المتجر)', screen: 'account', state: MERCHANT_STATE, figma: '13:4429' },
       { key: 'account-merchant-pending', title: 'الملف الشخصي — طلب المتجر قيد المراجعة', screen: 'account', state: { merchantStatus: 'pending' }, figma: '13:3816' },
       { key: 'notifications', title: 'مركز التنبيهات', screen: 'notifications', state: { orders: ORDER('out') }, stack: ['home'], figma: '13:3747' },
+      { key: 'legal-terms', title: 'شروط الاستخدام', screen: 'legal', params: { doc: 'terms' }, stack: ['account'], figma: '—' },
+      { key: 'legal-privacy', title: 'سياسة الخصوصية', screen: 'legal', params: { doc: 'privacy' }, stack: ['account'], figma: '—' },
       { key: 'support', title: 'المساعدة والدعم الفني', screen: 'support', stack: ['account'], figma: '—' },
       { key: 'admin-login', title: 'بوابة الإدارة المركزية — تسجيل الدخول', screen: 'adminLogin', stack: ['account'], note: 'شاشة دخول فقط (لوحة الإدارة خارج النطاق)', figma: '13:6062' },
     ],
@@ -133,28 +145,29 @@ export const GALLERY = [
     title: 'رحلة التاجر — لوحة التحكم',
     desc: 'لوحة المتجر، المنتجات، الطلبات الواردة وكل مراحلها، الإحصائيات',
     items: [
-      { key: 'm-dashboard', title: 'لوحة إدارة المتجر والمبيعات', code: 'M-050', screen: 'm-dashboard', state: { orders: ORDER('new') }, figma: '13:4890' },
-      { key: 'm-store-edit', title: 'إدارة وتعديل بيانات المتجر', screen: 'm-store-edit', stack: ['m-dashboard'], figma: '13:4576' },
-      { key: 'm-products', title: 'قائمة منتجات المتجر', code: 'M-051', screen: 'm-products', figma: '13:4748' },
-      { key: 'm-product-add', title: 'إضافة منتج جديد للمتجر', screen: 'm-product-form', stack: ['m-products'], figma: '13:4621' },
-      { key: 'm-product-edit', title: 'تعديل بيانات المنتج', code: 'M-056', screen: 'm-product-form', params: { id: 'p-headphones' }, stack: ['m-products'], figma: '13:4390' },
-      { key: 'm-product-errors', title: 'خطأ في بيانات المنتج', code: 'M-059', screen: 'm-product-form', params: { preset: 'errors' }, stack: ['m-products'], figma: '63:11' },
-      { key: 'm-product-saved', title: 'تم تعديل المنتج بنجاح', code: 'M-056', screen: 'm-product-saved', params: { id: 'p-headphones', tab: 'm-products' }, stack: ['m-products'], figma: '63:101' },
-      { key: 'm-product-delete', title: 'تأكيد حذف المنتج', code: 'M-057', screen: 'm-products', params: { preset: 'confirm' }, figma: '13:5263' },
-      { key: 'm-product-deleted', title: 'تم حذف المنتج', code: 'M-058', screen: 'm-product-deleted', params: { name: 'كاميرا مراقبة ذكية', tab: 'm-products' }, stack: ['m-products'], figma: '13:5460' },
-      { key: 'm-orders', title: 'الطلبات الواردة للمتجر', code: 'M-060', screen: 'm-orders', state: { orders: ORDER('new') }, figma: '13:5345' },
-      { key: 'm-orders-empty', title: 'لا توجد طلبات واردة', code: 'M-061', screen: 'm-orders', state: { orders: [] }, figma: '13:5525' },
-      { key: 'm-order-decision', title: 'قرار قبول أو رفض الطلب', code: 'M-063', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('new') }, stack: ['m-orders'], figma: '13:5685' },
-      { key: 'm-order-accepted', title: 'تم قبول الطلب', code: 'M-064', screen: 'm-order-accepted', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { orders: ORDER('accepted') }, stack: ['m-orders'], figma: '13:5607' },
-      { key: 'm-order-processing', title: 'معالجة وتحديث حالة الطلب', code: 'M-062', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('accepted') }, stack: ['m-orders'], figma: '13:5815' },
-      { key: 'm-order-preparing', title: 'مرحلة: قيد التحضير', code: 'M-066', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5869' },
-      { key: 'm-order-ready', title: 'مرحلة: جاهز للاستلام', code: 'M-067', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('ready') }, stack: ['m-orders'], figma: '13:5914' },
-      { key: 'm-order-out', title: 'مرحلة: خرج للتوصيل', code: 'M-068', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('out') }, stack: ['m-orders'], figma: '13:5951' },
-      { key: 'm-order-delivered', title: 'تم التوصيل بنجاح', code: 'M-069', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { orders: ORDER('delivered') }, stack: ['m-orders'], figma: '13:6001' },
-      { key: 'm-order-rejected', title: 'تم رفض الطلب', code: 'M-065', screen: 'm-order-rejected', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { orders: ORDER('rejected') }, stack: ['m-orders'], figma: '13:5742' },
-      { key: 'm-stats', title: 'إحصائيات وأداء المبيعات', code: 'M-070', screen: 'm-stats', figma: '13:6170' },
-      { key: 'm-stats-empty', title: 'الإحصائيات غير متوفرة', code: 'M-071', screen: 'm-stats', state: { orders: [], merchantProducts: [] }, figma: '13:6276' },
-      { key: 'm-notifications', title: 'إشعارات التاجر', code: 'M-072', screen: 'm-notifications', stack: ['m-dashboard'], figma: '13:6113' },
+      { key: 'm-dashboard', title: 'لوحة إدارة المتجر والمبيعات', code: 'M-050', screen: 'm-dashboard', state: { ...MERCHANT_STATE, orders: ORDER('new') }, figma: '13:4890' },
+      { key: 'm-store-edit', title: 'إدارة وتعديل بيانات المتجر', state: MERCHANT_STATE, screen: 'm-store-edit', stack: ['m-dashboard'], figma: '13:4576' },
+      { key: 'm-products', title: 'قائمة منتجات المتجر', code: 'M-051', state: MERCHANT_STATE, screen: 'm-products', figma: '13:4748' },
+      { key: 'm-product-add', title: 'إضافة منتج جديد للمتجر', state: MERCHANT_STATE, screen: 'm-product-form', stack: ['m-products'], figma: '13:4621' },
+      { key: 'm-product-edit', title: 'تعديل بيانات المنتج', code: 'M-056', state: MERCHANT_STATE, screen: 'm-product-form', params: { id: 'p-headphones' }, stack: ['m-products'], figma: '13:4390' },
+      { key: 'm-product-errors', title: 'خطأ في بيانات المنتج', code: 'M-059', state: MERCHANT_STATE, screen: 'm-product-form', params: { preset: 'errors' }, stack: ['m-products'], figma: '63:11' },
+      { key: 'm-product-saved', title: 'تم تعديل المنتج بنجاح', code: 'M-056', state: MERCHANT_STATE, screen: 'm-product-saved', params: { id: 'p-headphones', tab: 'm-products' }, stack: ['m-products'], figma: '63:101' },
+      { key: 'm-product-delete', title: 'تأكيد حذف المنتج', code: 'M-057', state: MERCHANT_STATE, screen: 'm-products', params: { preset: 'confirm' }, figma: '13:5263' },
+      { key: 'm-product-deleted', title: 'تم حذف المنتج', code: 'M-058', state: MERCHANT_STATE, screen: 'm-product-deleted', params: { name: 'كاميرا مراقبة ذكية', tab: 'm-products' }, stack: ['m-products'], figma: '13:5460' },
+      { key: 'm-orders', title: 'الطلبات الواردة للمتجر', code: 'M-060', screen: 'm-orders', state: { ...MERCHANT_STATE, orders: ORDER('new') }, figma: '13:5345' },
+      { key: 'm-orders-empty', title: 'لا توجد طلبات واردة', code: 'M-061', screen: 'm-orders', state: { ...MERCHANT_STATE, orders: [] }, figma: '13:5525' },
+      { key: 'm-order-decision', title: 'قرار قبول أو رفض الطلب', code: 'M-063', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('new') }, stack: ['m-orders'], figma: '13:5685' },
+      { key: 'm-order-transfer', title: 'تأكيد استلام التحويل وبدء التجهيز (إيصال مرفق)', state: { ...MERCHANT_STATE, orders: TRANSFER_ORDER('new') }, screen: 'm-order', params: { orderId: 'JD-984210' }, stack: ['m-orders'], note: 'زر واحد يثبت الدفع وينقل الطلب إلى التجهيز', figma: '—' },
+      { key: 'm-order-accepted', title: 'تم قبول الطلب وبدء التجهيز', code: 'M-064', screen: 'm-order-accepted', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5607' },
+      { key: 'm-order-processing', title: 'معالجة وتحديث حالة الطلب', code: 'M-062', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5815' },
+      { key: 'm-order-preparing', title: 'مرحلة: قيد التجهيز', code: 'M-066', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5869' },
+      { key: 'm-order-ready', title: 'مرحلة: جاهز للتسليم للمندوب (مدمجة ضمن قيد التجهيز)', code: 'M-067', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5914' },
+      { key: 'm-order-out', title: 'مرحلة: في الطريق', code: 'M-068', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('out') }, stack: ['m-orders'], figma: '13:5951' },
+      { key: 'm-order-delivered', title: 'تم التوصيل بنجاح', code: 'M-069', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('delivered') }, stack: ['m-orders'], figma: '13:6001' },
+      { key: 'm-order-rejected', title: 'تم رفض الطلب', code: 'M-065', screen: 'm-order-rejected', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { ...MERCHANT_STATE, orders: ORDER('rejected') }, stack: ['m-orders'], figma: '13:5742' },
+      { key: 'm-stats', title: 'إحصائيات وأداء المبيعات', code: 'M-070', state: MERCHANT_STATE, screen: 'm-stats', figma: '13:6170' },
+      { key: 'm-stats-empty', title: 'الإحصائيات غير متوفرة', code: 'M-071', screen: 'm-stats', state: { ...MERCHANT_STATE, orders: [], merchantProducts: [] }, figma: '13:6276' },
+      { key: 'm-notifications', title: 'إشعارات التاجر', code: 'M-072', state: MERCHANT_STATE, screen: 'm-notifications', stack: ['m-dashboard'], figma: '13:6113' },
     ],
   },
   {
@@ -178,5 +191,6 @@ export const GALLERY_COUNT = GALLERY_ITEMS.length
 // الحالة الابتدائية لعنصر في المعرض
 export function stateForItem(item) {
   const stack = [...(item.stack || []).map((name) => ({ name, params: {} })), { name: item.screen, params: item.params || {} }]
+  // المعرض يعرض افتراضياً عميلاً مسجّلاً؛ شاشات التاجر تمرّر merchantStatus: 'approved' عبر MERCHANT_STATE
   return { auth: AUTH_OK, merchantProducts: TECH_IDS, ...(item.state || {}), stack }
 }

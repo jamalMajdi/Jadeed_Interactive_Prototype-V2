@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { Store, Upload, FileText, Image as ImageIcon, Check, X, Clock, ShieldCheck, Plus, Pencil, Trash2, Package, ClipboardList, BarChart3, ChevronLeft, AlertTriangle, DollarSign, TrendingUp, CheckCircle2, Bell, Lock, Mail, KeyRound, ArrowRight, Boxes } from 'lucide-react'
+import { Store, Upload, FileText, Image as ImageIcon, Check, X, Clock, ShieldCheck, Plus, Pencil, Trash2, Package, ClipboardList, BarChart3, ChevronLeft, AlertTriangle, DollarSign, TrendingUp, CheckCircle2, Bell, Lock, Mail, KeyRound, ArrowRight, Boxes, MapPin, Phone, Truck, UserRound, Landmark, Wallet } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, StateScreen, KeyValue, StageChip, Modal, Logo } from '../components/ui'
-import { CATEGORIES, CURRENCY, MERCHANT, MERCHANT_NOTIFICATIONS, ORDER_STAGES, STAGE_INDEX, fmt, productById, storeById } from '../data/mock'
+import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, StateScreen, KeyValue, StageChip, Modal, Logo, PaymentChip, StoreMapPreview } from '../components/ui'
+import { CATEGORIES, CURRENCY, MERCHANT, MERCHANT_NOTIFICATIONS, ORDER_STAGES, STAGE_INDEX, USER, fmt, productById, storeById } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  تسجيل التاجر: بيانات مطلوبة (M-042) → إنشاء متجر → هوية (M-044)
@@ -14,7 +14,7 @@ export function MerchantIntro() {
     <StateScreen tone="info" icon={Store} code="M-042" title="يلزم تعبئة بياناتك كتاجر أولاً" description="قبل فتح وإطلاق متجرك في سوق جديد، يتطلب النظام إكمال متطلبات التوثيق الرسمي (KYC) لحماية حقوق العملاء والتجار." primary={{ label: 'البدء بتعبئة نموذج التاجر', onClick: () => navigate('merchantForm', {}, { replace: true }) }}>
       <div className="card p-4 text-right">
         <p className="text-[12px] font-bold text-ink-900 mb-2">المستندات والمعلومات المطلوبة:</p>
-        {['الاسم الكامل ورقم الهاتف المعتمد', 'صورة الهوية الوطنية أو السجل التجاري', 'صورة واجهة المتجر وشعاره'].map((t) => (
+        {['اسم المتجر واسم صاحبه ورقم التواصل', 'موقع المتجر على الخريطة ووقت التوصيل المتوقع', 'بيانات استلام المدفوعات (حساب بنكي / محفظة)', 'صورة الهوية الوطنية أو السجل التجاري', 'صورة واجهة المتجر وشعاره'].map((t) => (
           <p key={t} className="text-[11px] font-medium text-ink-600 flex items-center gap-2 py-1"><Check size={13} className="text-success" strokeWidth={3} /> {t}</p>
         ))}
       </div>
@@ -23,30 +23,55 @@ export function MerchantIntro() {
 }
 
 export function MerchantForm() {
-  const { navigate, showToast } = useApp()
-  const [f, setF] = useState({ name: 'تكنو سيبس للإلكترونيات', cat: 'electronics', city: 'تعز', area: 'شارع جمال، المسبح' })
+  const { navigate, showToast, state } = useApp()
+  const linkedAccount = state.auth.email || USER.email
+  const [f, setF] = useState({ name: 'تكنو سيبس للإلكترونيات', owner: USER.name, phone: USER.phone, cat: 'electronics', city: 'تعز', area: 'شارع جمال، المسبح', deliveryTime: '45-60 دقيقة', bank: 'بنك الكريمي للتمويل الأصغر', account: '', holder: USER.name })
+  const [loc, setLoc] = useState(null) // { x, y, label } يُحدَّد بالنقر على الخريطة
   const [errors, setErrors] = useState({})
+  const set = (k) => (e) => { setF({ ...f, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: undefined }) }
+  const pickLocation = () => { setLoc({ lat: 13.5795, lng: 44.021, x: 52, y: 44, label: 'شارع جمال، جوار بريد تعز المركزي' }); setErrors({ ...errors, loc: undefined }); showToast('تم تثبيت موقع المتجر على الخريطة', 'success') }
   const submit = () => {
     const er = {}
     if (f.name.trim().length < 3) er.name = 'اسم المتجر مطلوب'
+    if (f.owner.trim().length < 3) er.owner = 'اسم صاحب المتجر مطلوب'
+    if (!/^(\+?967)?7\d{8}$/.test(f.phone.replace(/\s/g, ''))) er.phone = 'رقم التواصل يجب أن يبدأ بـ 7 ويتكون من 9 أرقام'
     if (f.area.trim().length < 3) er.area = 'الحي مطلوب'
+    if (!loc) er.loc = 'حدد موقع المتجر على الخريطة'
+    if (!f.deliveryTime.trim()) er.deliveryTime = 'وقت التوصيل مطلوب'
+    if (f.account.trim().length < 6) er.account = 'رقم الحساب / المحفظة مطلوب لاستلام المدفوعات'
     setErrors(er)
-    if (Object.keys(er).length) return
+    if (Object.keys(er).length) return showToast('أكمل الحقول المطلوبة', 'danger')
     navigate('merchantIdentity')
   }
+  const Err = ({ k }) => (errors[k] ? <p className="text-[11px] font-bold text-danger mt-1">{errors[k]}</p> : null)
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
       <TopBar title="طلب إنشاء متجر جديد" subtitle="أدخل البيانات الأساسية لمتجرك الرقمي في منصة جديد:" />
       <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-4">
+        <div className="rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 flex items-center gap-2 text-[11px] font-medium text-primary">
+          <UserRound size={14} className="shrink-0" /> الحساب المرتبط بالمتجر: <b dir="ltr" className="truncate">{linkedAccount}</b>
+        </div>
         <div>
           <label className="label">اسم المتجر</label>
-          <input className={`field bg-white ${errors.name ? 'field-error' : ''}`} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          {errors.name && <p className="text-[11px] font-bold text-danger mt-1">{errors.name}</p>}
+          <input className={`field bg-white ${errors.name ? 'field-error' : ''}`} value={f.name} onChange={set('name')} />
+          <Err k="name" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">اسم صاحب المتجر</label>
+            <input className={`field bg-white ${errors.owner ? 'field-error' : ''}`} value={f.owner} onChange={set('owner')} />
+            <Err k="owner" />
+          </div>
+          <div>
+            <label className="label">رقم التواصل</label>
+            <input dir="ltr" inputMode="tel" className={`field bg-white text-left tabular ${errors.phone ? 'field-error' : ''}`} value={f.phone} onChange={set('phone')} placeholder="7xxxxxxxx" />
+            <Err k="phone" />
+          </div>
         </div>
         <div>
           <label className="label">نوع النشاط / التصنيف الرئيسي</label>
-          <select className="field bg-white" value={f.cat} onChange={(e) => setF({ ...f, cat: e.target.value })}>
+          <select className="field bg-white" value={f.cat} onChange={set('cat')}>
             {CATEGORIES.filter((c) => c.id !== 'all').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </div>
@@ -57,12 +82,46 @@ export function MerchantForm() {
           </div>
           <div>
             <label className="label">الحي</label>
-            <input className={`field bg-white ${errors.area ? 'field-error' : ''}`} value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
+            <input className={`field bg-white ${errors.area ? 'field-error' : ''}`} value={f.area} onChange={set('area')} />
+            <Err k="area" />
+          </div>
+        </div>
+        <div>
+          <label className="label">موقع المتجر على الخريطة</label>
+          <StoreMapPreview location={loc} height={130} onClick={pickLocation} className={loc ? 'border-success' : errors.loc ? 'border-danger' : ''} />
+          <p className="text-[10px] text-ink-400 mt-1">{loc ? 'تم تثبيت الدبوس — انقر مرة أخرى لإعادة التحديد' : 'انقر على الخريطة لتثبيت دبوس موقع المتجر (يظهر للعملاء في صفحة المتجر)'}</p>
+          <Err k="loc" />
+        </div>
+        <div>
+          <label className="label">وقت التوصيل المتوقع للعملاء</label>
+          <select className={`field bg-white ${errors.deliveryTime ? 'field-error' : ''}`} value={f.deliveryTime} onChange={set('deliveryTime')}>
+            {['25-40 دقيقة', '35-50 دقيقة', '45-60 دقيقة', '60-90 دقيقة', 'خلال 24 ساعة'].map((t) => <option key={t}>{t}</option>)}
+          </select>
+          <Err k="deliveryTime" />
+        </div>
+        <div className="card p-3 space-y-3">
+          <p className="text-[12px] font-extrabold text-ink-900 flex items-center gap-1.5"><Landmark size={14} className="text-primary" /> بيانات استلام المدفوعات (تظهر للعميل عند اختيار التحويل)</p>
+          <div>
+            <label className="label">البنك / جهة التحويل</label>
+            <select className="field bg-white" value={f.bank} onChange={set('bank')}>
+              {['بنك الكريمي للتمويل الأصغر', 'بنك التضامن', 'بنك اليمن والكويت', 'محفظة جوالي', 'محفظة كاش'].map((b) => <option key={b}>{b}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">رقم الحساب / المحفظة</label>
+              <input dir="ltr" className={`field bg-white text-left tabular ${errors.account ? 'field-error' : ''}`} value={f.account} onChange={set('account')} placeholder="KR-3001-000000-00" />
+              <Err k="account" />
+            </div>
+            <div>
+              <label className="label">اسم صاحب الحساب</label>
+              <input className="field bg-white" value={f.holder} onChange={set('holder')} />
+            </div>
           </div>
         </div>
         <div>
           <label className="label">شعار وغلاف المتجر</label>
-          <button onClick={() => showToast('سيتم رفع الصور في الخطوة التالية')} className="w-full h-12 rounded-card border-2 border-dashed border-primary-300 text-primary text-[12px] font-bold flex items-center justify-center gap-2 bg-white"><Upload size={16} /> رفع الشعار والصورة التعريفية</button>
+          <button onClick={() => showToast('سيتم رفع الصور في الخطوة التالية')} className="w-full h-12 rounded-card border-2 border-dashed border-primary-300 text-primary text-[12px] font-bold flex items-center justify-center gap-2"><Upload size={16} /> رفع الشعار والصورة التعريفية</button>
         </div>
       </div>
       <div className="px-5 pb-4">
@@ -255,20 +314,46 @@ export function MerchantDashboard() {
 export function MerchantStoreEdit() {
   const { back, showToast } = useApp()
   const store = storeById(MERCHANT.storeId)
-  const [f, setF] = useState({ name: store.name, desc: store.description, prep: store.prepTime, min: store.minOrder })
+  const [f, setF] = useState({ name: store.name, desc: store.description, prep: store.prepTime, min: store.minOrder, owner: store.owner, phone: store.phone, deliveryTime: store.deliveryTime, bank: store.payment.bank, account: store.payment.account, holder: store.payment.holder, wallet: store.payment.wallet })
+  const [loc, setLoc] = useState(store.location)
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const save = () => {
+    Object.assign(store, { name: f.name, description: f.desc, prepTime: f.prep, minOrder: Number(f.min), owner: f.owner, phone: f.phone, deliveryTime: f.deliveryTime, location: loc, payment: { bank: f.bank, account: f.account, holder: f.holder, wallet: f.wallet } })
+    showToast('تم حفظ التعديلات', 'success')
+    back()
+  }
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title="إدارة وتعديل بيانات المتجر" subtitle="ساعات العمل، الشعار، وسياسة التوصيل" />
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-        <div><label className="label">اسم المتجر الظاهر للعملاء</label><input className="field bg-white" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
-        <div><label className="label">الوصف التعريفي للمتجر</label><textarea className="field bg-white h-24 py-3 resize-none" value={f.desc} onChange={(e) => setF({ ...f, desc: e.target.value })} /></div>
+      <TopBar title="إدارة وتعديل بيانات المتجر" subtitle="البيانات، التواصل، الموقع، التوصيل، وبيانات الدفع" />
+      <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-4">
+        <div><label className="label">اسم المتجر الظاهر للعملاء</label><input className="field bg-white" value={f.name} onChange={set('name')} /></div>
+        <div><label className="label">الوصف التعريفي للمتجر</label><textarea className="field bg-white h-24 py-3 resize-none" value={f.desc} onChange={set('desc')} /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="label">وقت التجهيز المتوقع</label><input className="field bg-white" value={f.prep} onChange={(e) => setF({ ...f, prep: e.target.value })} /></div>
-          <div><label className="label">الحد الأدنى للطلب</label><input type="number" className="field bg-white tabular" value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} /></div>
+          <div><label className="label">اسم صاحب المتجر</label><input className="field bg-white" value={f.owner} onChange={set('owner')} /></div>
+          <div><label className="label">رقم التواصل</label><input dir="ltr" className="field bg-white text-left tabular" value={f.phone} onChange={set('phone')} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label">وقت التوصيل المتوقع</label><input className="field bg-white" value={f.deliveryTime} onChange={set('deliveryTime')} /></div>
+          <div><label className="label">وقت التجهيز</label><input className="field bg-white" value={f.prep} onChange={set('prep')} /></div>
+        </div>
+        <div><label className="label">الحد الأدنى للطلب</label><input type="number" className="field bg-white tabular" value={f.min} onChange={set('min')} /></div>
+        <div>
+          <label className="label">موقع المتجر على الخريطة</label>
+          <StoreMapPreview location={loc} height={120} onClick={() => { setLoc({ ...loc, x: 40 + Math.round(Math.random() * 25), y: 35 + Math.round(Math.random() * 25) }); showToast('تم تحديث موقع الدبوس', 'success') }} />
+          <p className="text-[10px] text-ink-400 mt-1">انقر على الخريطة لتعديل موضع الدبوس</p>
+        </div>
+        <div className="card p-3 space-y-3">
+          <p className="text-[12px] font-extrabold text-ink-900 flex items-center gap-1.5"><Landmark size={14} className="text-primary" /> بيانات استلام المدفوعات</p>
+          <div><label className="label">البنك / جهة التحويل</label><input className="field bg-white" value={f.bank} onChange={set('bank')} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">رقم الحساب</label><input dir="ltr" className="field bg-white text-left tabular" value={f.account} onChange={set('account')} /></div>
+            <div><label className="label">اسم صاحب الحساب</label><input className="field bg-white" value={f.holder} onChange={set('holder')} /></div>
+          </div>
+          <div><label className="label">محفظة إلكترونية</label><input dir="ltr" className="field bg-white text-left tabular" value={f.wallet} onChange={set('wallet')} /></div>
         </div>
       </div>
-      <div className="px-5 pb-4"><button onClick={() => { Object.assign(store, { name: f.name, description: f.desc, prepTime: f.prep, minOrder: Number(f.min) }); showToast('تم حفظ التعديلات', 'success'); back() }} className="w-full btn-primary btn-lg">حفظ التعديلات</button></div>
+      <div className="px-5 pb-4"><button onClick={save} className="w-full btn-primary btn-lg">حفظ التعديلات</button></div>
       <HomeIndicator />
     </div>
   )
@@ -395,13 +480,13 @@ export function MerchantOrders() {
           <button key={o.id} onClick={() => navigate('m-order', { orderId: o.id })} className={`w-full card p-3.5 text-right ${o.stage === 'new' ? 'border-2 border-primary' : ''}`}>
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-extrabold text-primary tabular" dir="ltr">{o.id}</span>
-              <StageChip stage={o.stage} />
+              <div className="flex items-center gap-1.5">{o.paymentStatus === 'pending_confirmation' && <PaymentChip status={o.paymentStatus} />}<StageChip stage={o.stage} /></div>
             </div>
             <div className="flex items-center justify-between mt-2">
               <div><p className="text-[13px] font-bold text-ink-900">محمد سعيد</p><p className="text-[10px] text-ink-400">تعز · {o.createdAt} · {o.items.length} أصناف</p></div>
               <Price value={o.total} size="sm" />
             </div>
-            <div className="border-t border-ink-100 mt-2.5 pt-2 flex items-center justify-between text-[11px] font-bold text-primary"><span>{o.stage === 'new' ? 'قرار القبول أو الرفض' : 'فتح تفاصيل الطلب وتحديث المرحلة'}</span><ChevronLeft size={14} /></div>
+            <div className="border-t border-ink-100 mt-2.5 pt-2 flex items-center justify-between text-[11px] font-bold text-primary"><span>{o.stage === 'new' ? (o.paymentStatus === 'pending_confirmation' ? 'تأكيد استلام التحويل وبدء التجهيز' : 'قبول وبدء التجهيز أو الرفض') : 'فتح تفاصيل الطلب وتحديث المرحلة'}</span><ChevronLeft size={14} /></div>
           </button>
         )) : (
           <div className="flex flex-col items-center text-center pt-16 px-6">
@@ -422,47 +507,80 @@ export function MerchantOrder() {
   if (!order) return null
   const address = addressById(order.addressId)
   const idx = STAGE_INDEX[order.stage]
+  const transferPending = order.paymentStatus === 'pending_confirmation'
   const setStage = (stage, msg) => { dispatch({ type: 'SET_ORDER_STAGE', orderId: order.id, stage }); showToast(msg, 'success') }
-  const stageBtn = { accepted: ['قيد التحضير', 'preparing', 'M-066'], preparing: ['تحديد الطلب كـ "جاهز"', 'ready', 'M-067'], ready: ['تحديد كـ "خرج للتوصيل"', 'out', 'M-068'], out: ['تأكيد إتمام التوصيل والتسليم', 'delivered', 'M-069'] }[order.stage]
+  // انتقالان يدويان فقط: (جديد → قيد التجهيز) عبر القبول/تأكيد الدفع، ثم (قيد التجهيز → في الطريق). التسليم النهائي يُؤكَّد تلقائياً من المندوب أو يدوياً هنا
+  const nextAction = { preparing: ['تسليم الطلب للمندوب — في الطريق', 'out', 'btn-primary'], out: ['تأكيد وصول الطلب للعميل', 'delivered', 'btn-success'] }[order.stage]
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title={order.stage === 'new' ? 'قرار قبول أو رفض الطلب' : 'معالجة وتحديث حالة الطلب'} code={order.stage === 'new' ? 'M-063' : 'M-062'} right={<StageChip stage={order.stage} />} />
+      <TopBar title={order.stage === 'new' ? (transferPending ? 'تأكيد التحويل وبدء التجهيز' : 'قرار قبول أو رفض الطلب') : 'معالجة وتحديث حالة الطلب'} right={<StageChip stage={order.stage} />} />
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-3">
         <div className="card p-4">
           <div className="flex items-center justify-between"><span className="text-[13px] font-extrabold text-primary tabular" dir="ltr">{order.id}</span><span className="text-[10px] text-ink-400">{order.createdAt}</span></div>
           <p className="text-[14px] font-bold text-ink-900 mt-1">العميل: محمد سعيد <span className="text-[11px] text-ink-400 font-medium tabular" dir="ltr">(773030064)</span></p>
           <p className="text-[11px] text-ink-500">{address?.details}</p>
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap"><PaymentChip status={order.paymentStatus || 'cod'} /><Chip tone="ink">{order.payment}</Chip></div>
         </div>
+
+        {/* إيصال التحويل المرفق من العميل */}
+        {order.receipt && (
+          <div className={`card p-4 ${transferPending ? 'border-2 border-warning' : ''}`}>
+            <p className="text-[12px] font-extrabold text-ink-900 flex items-center gap-1.5 mb-2"><Landmark size={14} className="text-primary" /> إيصال التحويل المرفق مع الطلب</p>
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-xl bg-primary-50 text-primary flex items-center justify-center shrink-0"><ImageIcon size={26} /></div>
+              <div className="flex-1 min-w-0 text-[11px]">
+                <p className="font-bold text-ink-900 truncate" dir="ltr">{order.receipt.name}</p>
+                <p className="text-ink-500">المبلغ المتوقع: <b className="text-secondary tabular">{fmt(order.total)} {CURRENCY}</b></p>
+                <p className="text-ink-500">إلى حساب: <span className="tabular" dir="ltr">{storeById(order.storeId)?.payment?.account}</span></p>
+              </div>
+            </div>
+            {transferPending ? (
+              <p className="text-[10px] font-medium text-warning-700 mt-2">راجع الإيصال مقابل كشف حسابك ثم أكّد الاستلام — سينتقل الطلب تلقائياً إلى «قيد التجهيز» ويُبلَّغ العميل.</p>
+            ) : (
+              <p className="text-[10px] font-bold text-success-700 mt-2 flex items-center gap-1"><CheckCircle2 size={12} /> تم تأكيد استلام المبلغ</p>
+            )}
+          </div>
+        )}
+
         <div className="card p-4">
-          <p className="text-[12px] font-bold text-ink-900 mb-2">{idx >= STAGE_INDEX.preparing && idx < STAGE_INDEX.out ? 'قائمة فحص الأصناف:' : 'العناصر المطلوبة:'}</p>
+          <p className="text-[12px] font-bold text-ink-900 mb-2">{order.stage === 'preparing' ? 'قائمة تجهيز الأصناف:' : 'العناصر المطلوبة:'}</p>
           {order.items.map((it) => { const p = productById(it.productId); return (
             <label key={it.productId} className="flex items-center justify-between py-1.5 text-[12px]">
-              <span className="flex items-center gap-2 text-ink-700 font-medium">{idx >= STAGE_INDEX.preparing && idx < STAGE_INDEX.out && <input type="checkbox" defaultChecked className="w-4 h-4 accent-primary" />}{p.shortName} <span className="text-ink-400">(×{it.qty})</span></span>
+              <span className="flex items-center gap-2 text-ink-700 font-medium">{order.stage === 'preparing' && <input type="checkbox" defaultChecked className="w-4 h-4 accent-primary" />}{p.shortName} <span className="text-ink-400">× {it.qty}</span></span>
               <span className="font-bold tabular">{fmt(it.price * it.qty)}</span>
             </label>
           ) })}
           <div className="border-t border-dashed border-ink-200 mt-2 pt-2 flex items-center justify-between"><span className="text-[13px] font-extrabold text-primary">إجمالي الفاتورة:</span><Price value={order.total} size="sm" tone="primary" /></div>
         </div>
-        {idx >= STAGE_INDEX.accepted && idx <= STAGE_INDEX.out && (
+
+        {/* مسار مبسّط من 4 مراحل — للعرض فقط، الانتقال عبر الزر الرئيسي بالأسفل */}
+        {idx !== undefined && (
           <div className="card p-4">
-            <p className="text-[12px] font-bold text-ink-900 mb-2">تغيير مرحلة الطلب الحالية</p>
-            <div className="grid grid-cols-2 gap-2">
-              {ORDER_STAGES.slice(2).map((s) => { const i = STAGE_INDEX[s.key]; const cur = i === idx; const done = i < idx; return (
-                <button key={s.key} disabled={i <= idx || i > idx + 1} onClick={() => setStage(s.key, `تم تحديث المرحلة: ${s.label}`)} className={`h-10 rounded-xl text-[12px] font-bold border transition disabled:cursor-not-allowed ${cur ? 'bg-secondary text-white border-secondary' : done ? 'bg-success-50 text-success-700 border-success-100' : i === idx + 1 ? 'bg-white text-primary border-primary' : 'bg-ink-100 text-ink-400 border-transparent'}`}>{done && '✓ '}{s.label}</button>
+            <p className="text-[12px] font-bold text-ink-900 mb-3">مسار الطلب</p>
+            <ol className="flex items-center gap-1">
+              {ORDER_STAGES.map((s, i) => { const done = i < idx; const cur = i === idx; return (
+                <li key={s.key} className="flex-1 flex flex-col items-center gap-1 text-center">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${done ? 'bg-primary text-white' : cur ? 'bg-secondary text-white ring-4 ring-secondary-100' : 'bg-ink-100 text-ink-400'}`}>{done ? <Check size={13} strokeWidth={3} /> : i + 1}</div>
+                  <span className={`text-[9px] font-bold leading-tight ${cur ? 'text-secondary' : done ? 'text-ink-800' : 'text-ink-400'}`}>{s.label}</span>
+                </li>
               ) })}
-            </div>
+            </ol>
           </div>
         )}
-        {order.stage === 'delivered' && <div className="card p-6 text-center"><CheckCircle2 size={36} className="text-success mx-auto" /><p className="text-[14px] font-extrabold mt-2">تم تسليم الطلب بنجاح!</p><p className="text-[11px] text-ink-500">اكتملت دورة حياة الطلب وتم تحصيل المبلغ نقداً</p></div>}
+        {order.stage === 'delivered' && <div className="card p-6 text-center"><CheckCircle2 size={36} className="text-success mx-auto" /><p className="text-[14px] font-extrabold mt-2">تم تسليم الطلب بنجاح!</p><p className="text-[11px] text-ink-500 mt-1">أُضيف المبلغ إلى مستحقاتك.</p></div>}
       </div>
       <div className="px-4 pb-4 pt-2 space-y-2">
         {order.stage === 'new' && (<>
-          <button onClick={() => { dispatch({ type: 'SET_ORDER_STAGE', orderId: order.id, stage: 'accepted' }); navigate('m-order-accepted', { orderId: order.id, tab: 'm-orders' }, { replace: true }) }} className="w-full btn-primary btn-lg"><Check size={18} strokeWidth={3} /> قبول الطلب والبدء بالتجهيز</button>
-          <button onClick={() => { dispatch({ type: 'REJECT_ORDER', orderId: order.id }); navigate('m-order-rejected', { orderId: order.id, tab: 'm-orders' }, { replace: true }) }} className="w-full btn-outline btn-lg !text-danger !border-danger-100">رفض الطلب</button>
+          {transferPending ? (
+            <button onClick={() => { dispatch({ type: 'CONFIRM_PAYMENT', orderId: order.id }); navigate('m-order-accepted', { orderId: order.id, tab: 'm-orders', paid: true }, { replace: true }) }} className="w-full btn-primary btn-lg"><CheckCircle2 size={18} /> تأكيد استلام المبلغ وبدء التجهيز</button>
+          ) : (
+            <button onClick={() => { dispatch({ type: 'SET_ORDER_STAGE', orderId: order.id, stage: 'preparing' }); navigate('m-order-accepted', { orderId: order.id, tab: 'm-orders' }, { replace: true }) }} className="w-full btn-primary btn-lg"><Check size={18} /> قبول الطلب وبدء التجهيز</button>
+          )}
+          <button onClick={() => { dispatch({ type: 'REJECT_ORDER', orderId: order.id }); navigate('m-order-rejected', { orderId: order.id, tab: 'm-orders' }, { replace: true }) }} className="w-full btn-outline btn-lg !text-danger !border-danger-100"><X size={18} /> رفض الطلب{transferPending ? ' (لم يصل المبلغ)' : ''}</button>
         </>)}
-        {stageBtn && <button onClick={() => setStage(stageBtn[1], stageBtn[1] === 'delivered' ? 'تم تسليم الطلب بنجاح!' : `تم تحديث المرحلة إلى: ${stageBtn[0]}`)} className={`w-full btn-lg ${stageBtn[1] === 'delivered' ? 'btn-success' : stageBtn[1] === 'preparing' ? 'btn-primary' : 'btn-secondary'}`}>{stageBtn[0]}</button>}
-        {(order.stage === 'delivered' || order.stage === 'rejected') && <button onClick={back} className="w-full btn-outline btn-lg">العودة للطلبات الواردة</button>}
+        {nextAction && <button onClick={() => setStage(nextAction[1], nextAction[1] === 'delivered' ? 'تم تسليم الطلب بنجاح!' : 'الطلب الآن في الطريق إلى العميل')} className={`w-full btn-lg ${nextAction[2]}`}>{nextAction[1] === 'out' ? <Truck size={18} /> : <CheckCircle2 size={18} />} {nextAction[0]}</button>}
+        {(order.stage === 'delivered' || order.stage === 'rejected' || order.stage === 'cancelled') && <button onClick={back} className="w-full btn-outline btn-lg">العودة للطلبات الواردة</button>}
       </div>
       <HomeIndicator />
     </div>
@@ -511,16 +629,12 @@ export function MerchantProductDeleted() {
 }
 
 export function MerchantOrderAccepted() {
-  const { current, state, dispatch, navigate, switchTab } = useApp()
+  const { current, state, navigate, switchTab } = useApp()
   const order = state.orders.find((o) => o.id === current.params?.orderId)
-  const goPreparing = () => {
-    if (!order) return switchTab('m-orders')
-    if (order.stage === 'accepted') dispatch({ type: 'SET_ORDER_STAGE', orderId: order.id, stage: 'preparing' })
-    navigate('m-order', { orderId: order.id }, { replace: true })
-  }
+  const paid = !!current.params?.paid
   return (
-    <MerchantState code="M-064" title="تم قبول الطلب" heading="تم قبول الطلب بنجاح!" description="تم إشعار العميل بقبول طلبه، وتحويل حالة الطلب إلى مرحلة التجهيز والتحضير." onBack={() => switchTab('m-orders')} primary={{ label: 'الانتقال لمرحلة التحضير', onClick: goPreparing }}>
-      {order && <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['إجمالي الفاتورة:', `${fmt(order.total)} ${CURRENCY}`], ['الحالة الحالية:', 'مقبول — بانتظار التحضير', 'text-info']]} />}
+    <MerchantState title={paid ? 'تم تأكيد الدفع' : 'تم قبول الطلب'} heading={paid ? 'تم تأكيد استلام المبلغ وبدء التجهيز' : 'تم قبول الطلب وبدء التجهيز!'} description={paid ? 'تم إشعار العميل بتأكيد الدفع، وانتقل الطلب تلقائياً إلى مرحلة التجهيز دون أي خطوة إضافية.' : 'تم إشعار العميل بقبول طلبه، وانتقل الطلب مباشرة إلى مرحلة التجهيز. عند تسليمه للمندوب اضغط «في الطريق».'} primary={{ label: 'فتح الطلب لمتابعة التجهيز', onClick: () => (order ? navigate('m-order', { orderId: order.id }, { replace: true }) : switchTab('m-orders')) }} onBack={() => switchTab('m-orders')}>
+      {order && <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['إجمالي الفاتورة:', `${fmt(order.total)} ${CURRENCY}`], ['الدفع:', paid ? 'تم تأكيد استلام المبلغ' : order.payment, paid ? 'text-success-700' : 'text-ink-900'], ['الحالة الحالية:', 'قيد التجهيز', 'text-warning-700']]} />}
     </MerchantState>
   )
 }

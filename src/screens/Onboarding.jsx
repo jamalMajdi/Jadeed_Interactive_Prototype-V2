@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, Briefcase, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, Briefcase, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff, LifeBuoy, Phone } from 'lucide-react'
 import { useApp, OTP_LENGTH, OTP_MAX_ATTEMPTS, DEMO_OTP } from '../store/AppContext'
 import { Logo, StatusBar, HomeIndicator, StateScreen, KeyValue, TopBar } from '../components/ui'
 import { USER } from '../data/mock'
@@ -118,17 +118,19 @@ const TYPES = [
 ]
 
 export function AccountType() {
-  const { navigate, dispatch, state } = useApp()
+  const { navigate, dispatch, state, switchTab } = useApp()
   const [sel, setSel] = useState(state.auth.accountType)
   const go = () => {
     dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: sel })
     navigate('login', {}, { resetTo: true })
   }
+  // التخطي = تصفح كزائر مباشرة (الدخول يُطلب لاحقاً عند الحاجة فقط)
+  const skip = () => switchTab('home')
   return (
     <div className="flex-1 flex flex-col bg-white">
       <StatusBar />
       <div className="px-5 pt-1 flex justify-start">
-        <button onClick={go} className="h-8 px-4 rounded-full bg-ink-100 text-[13px] font-bold">تخطي</button>
+        <button onClick={skip} className="h-8 px-4 rounded-full bg-ink-100 text-[13px] font-bold">تخطي</button>
       </div>
       <div className="px-6 pt-6">
         <h1 className="text-[28px] font-extrabold text-ink-900">
@@ -156,7 +158,7 @@ export function AccountType() {
       <div className="flex-1" />
       <div className="px-6 pb-4 space-y-2.5">
         <button onClick={go} className="w-full btn-primary btn-lg">متابعة</button>
-        <button onClick={go} className="w-full btn-outline btn-lg">تخطي</button>
+        <button onClick={skip} className="w-full btn-outline btn-lg">تصفح كزائر بدون تسجيل</button>
       </div>
       <HomeIndicator />
     </div>
@@ -170,8 +172,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const PHONE_RE = /^(\+?967)?7\d{8}$/
 
 export function Login() {
-  const { navigate, dispatch, switchTab, current } = useApp()
+  const { navigate, dispatch, switchTab, current, back, canGoBack, state } = useApp()
   const preset = current.params?.preset // 'invalid' → معاينة حالة CUS-002 مباشرة
+  const gated = !!current.params?.gated || !!state.auth.returnTo // وصل إلى هنا لأن ميزة تتطلب الدخول
   const [value, setValue] = useState(preset === 'invalid' ? 'user@invalid-mail' : '')
   const [error, setError] = useState(preset === 'invalid' ? 'البريد الإلكتروني المدخل غير صالح أو ناقص' : '')
   const [loading, setLoading] = useState(false)
@@ -192,15 +195,18 @@ export function Login() {
     <div className="flex-1 flex flex-col bg-white">
       <StatusBar />
       <div className="px-4 pt-1 flex items-center justify-between">
-        <button onClick={() => navigate('accountType', {}, { resetTo: true })} className="icon-btn" aria-label="رجوع">
+        <button onClick={() => (canGoBack ? back() : navigate('accountType', {}, { resetTo: true }))} className="icon-btn" aria-label="رجوع">
           <ChevronLeft size={18} className="rotate-180" strokeWidth={2.4} />
         </button>
-        <button onClick={() => switchTab('home')} className="text-[13px] font-bold text-primary">تصفح كزائر</button>
+        <button onClick={() => { dispatch({ type: 'CLEAR_RETURN_TO' }); switchTab('home') }} className="text-[13px] font-bold text-primary">تصفح كزائر</button>
       </div>
       <div className="flex flex-col items-center pt-6">
         <Logo size={64} />
       </div>
       <form onSubmit={submit} className="px-6 pt-8">
+        {gated && (
+          <div className="mb-4 rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 text-[11px] font-bold text-primary flex items-center gap-2"><Lock size={14} className="shrink-0" /> هذه الميزة تتطلب تسجيل الدخول — ستعود إلى ما كنت تفعله بعد التحقق.</div>
+        )}
         <h1 className="text-[20px] font-extrabold text-ink-900">تسجيل الدخول بالبريد الإلكتروني</h1>
         <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">أدخل بريدك الإلكتروني أو رقم هاتفك لتلقي رمز التحقق السريع (OTP) والدخول بأمان</p>
         <label className="label mt-6">البريد الإلكتروني أو رقم الجوال</label>
@@ -226,7 +232,10 @@ export function Login() {
         ) : (
           <p className="text-[11px] font-medium text-ink-400 mt-2">للتجربة: أي بريد صحيح، ورمز التحقق هو <b className="text-primary tabular">{DEMO_OTP}</b></p>
         )}
-        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-8">
+        <div className="flex justify-end mt-2">
+          <button type="button" onClick={() => navigate('forgotPassword', { value })} className="text-[12px] font-bold text-secondary">نسيت بيانات الدخول؟ استعادة الحساب</button>
+        </div>
+        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">
           {loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال رمز التحقق (OTP)'}
         </button>
       </form>
@@ -416,7 +425,15 @@ export function OtpLocked() {
 }
 
 export function LoginSuccess() {
-  const { switchTab } = useApp()
+  const { switchTab, navigate, state, dispatch, isMerchant } = useApp()
+  const returnTo = state.auth.returnTo
+  const proceed = () => {
+    dispatch({ type: 'CLEAR_RETURN_TO' })
+    if (returnTo?.name) return navigate(returnTo.name, returnTo.params || {}, { resetTo: true })
+    if (isMerchant && state.auth.accountType === 'merchant') return switchTab('m-dashboard')
+    switchTab('home')
+  }
+  const label = returnTo?.name ? 'المتابعة إلى حيث توقفت' : isMerchant && state.auth.accountType === 'merchant' ? 'الانتقال إلى لوحة تحكم المتجر' : 'المتابعة للرئيسية والتسوق'
   return (
     <StateScreen
       tone="info"
@@ -424,10 +441,76 @@ export function LoginSuccess() {
       showBack={false}
       title="أهلاً بك مجدداً في جديد!"
       description="تم التحقق من هويتك بنجاح ومصادقة الدخول إلى حسابك."
-      primary={{ label: 'المتابعة للرئيسية والتسوق', onClick: () => switchTab('home') }}
+      primary={{ label, onClick: proceed }}
     >
-      <KeyValue rows={[['طريقة التحقق:', `رمز البريد (OTP)`, 'text-primary'], ['حالة الجلسة:', 'نشطة وآمنة', 'text-success-700']]} />
+      <KeyValue rows={[['طريقة التحقق:', `رمز البريد (OTP)`, 'text-primary'], ['نوع الحساب:', isMerchant ? 'تاجر معتمد' : 'عميل', isMerchant ? 'text-secondary' : 'text-ink-900'], ['حالة الجلسة:', 'نشطة وآمنة', 'text-success-700']]} />
     </StateScreen>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+//  استعادة الحساب / نسيت بيانات الدخول
+//  الدخول يتم برمز OTP (بلا كلمة مرور) — لذا الاستعادة = التحقق من هوية المستخدم عبر قناة بديلة
+//  ثم تحديث البريد/الجوال المرتبط بالحساب
+// ─────────────────────────────────────────────────────────────
+export function ForgotPassword() {
+  const { navigate, back, dispatch, showToast, current } = useApp()
+  const [channel, setChannel] = useState('phone')
+  const [value, setValue] = useState(current.params?.value || '')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const submit = (e) => {
+    e?.preventDefault()
+    const v = value.trim()
+    const ok = channel === 'phone' ? PHONE_RE.test(v.replace(/\s/g, '')) : EMAIL_RE.test(v)
+    if (!ok) return setError(channel === 'phone' ? 'أدخل رقم جوال صحيح يبدأ بـ 7 (9 أرقام)' : 'أدخل بريداً إلكترونياً صحيحاً')
+    setError('')
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      setSent(true)
+      dispatch({ type: 'SET_EMAIL', email: v })
+    }, 700)
+  }
+  if (sent) {
+    return (
+      <StateScreen tone="success" icon={KeyRound} title="تم إرسال رابط استعادة الحساب" description={`أرسلنا رمز تحقق ورابط استعادة إلى ${channel === 'phone' ? 'رقم الجوال' : 'البريد الإلكتروني'} المسجّل. أدخل الرمز لتأكيد هويتك واستعادة الوصول إلى حسابك.`} primary={{ label: 'إدخال رمز التحقق', onClick: () => navigate('otp', {}, { replace: true }) }} secondary={{ label: 'العودة لتسجيل الدخول', onClick: () => navigate('login', {}, { resetTo: true }) }}>
+        <div className="inline-block bg-primary-50 text-primary text-[12px] font-bold rounded-full px-4 py-1.5 mb-4" dir="ltr">{value}</div>
+        <div className="card p-4 text-right">
+          <p className="text-[12px] font-bold text-ink-900 flex items-center gap-2"><Clock size={14} className="text-primary" /> صلاحية الرمز: 10 دقائق</p>
+          <p className="text-[11px] font-medium text-ink-400 leading-relaxed mt-1">لم يصلك شيء؟ تأكد من الرقم/البريد أو تواصل مع الدعم الفني لاستعادة الحساب يدوياً بعد التحقق من هويتك.</p>
+        </div>
+      </StateScreen>
+    )
+  }
+  return (
+    <div className="flex-1 flex flex-col bg-white">
+      <StatusBar />
+      <div className="px-4 pt-1 flex items-center justify-between">
+        <button onClick={back} className="icon-btn" aria-label="رجوع"><ChevronLeft size={18} className="rotate-180" strokeWidth={2.4} /></button>
+        <Logo size={26} />
+      </div>
+      <form onSubmit={submit} className="px-6 pt-6">
+        <div className="w-16 h-16 rounded-2xl bg-secondary-50 text-secondary flex items-center justify-center"><LifeBuoy size={30} strokeWidth={2} /></div>
+        <h1 className="text-[22px] font-extrabold text-ink-900 mt-4">استعادة الوصول إلى حسابك</h1>
+        <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">فقدت الوصول إلى بريدك أو رقم جوالك؟ اختر قناة التحقق البديلة المسجّلة في حسابك وسنرسل لك رمز استعادة.</p>
+        <div className="grid grid-cols-2 gap-2 mt-5">
+          {[['phone', Phone, 'رقم الجوال المسجّل'], ['email', Mail, 'البريد الإلكتروني']].map(([k, Icon, l]) => (
+            <button type="button" key={k} onClick={() => { setChannel(k); setError('') }} className={`h-12 rounded-field border-2 flex items-center justify-center gap-2 text-[12px] font-bold transition ${channel === k ? 'border-primary bg-primary-50/60 text-primary' : 'border-ink-200 text-ink-600'}`}><Icon size={16} /> {l}</button>
+          ))}
+        </div>
+        <label className="label mt-5">{channel === 'phone' ? 'رقم الجوال' : 'البريد الإلكتروني'}</label>
+        <input dir="ltr" value={value} onChange={(e) => { setValue(e.target.value); if (error) setError('') }} placeholder={channel === 'phone' ? '7xxxxxxxx' : 'salem@example.com'} inputMode={channel === 'phone' ? 'tel' : 'email'} className={`field text-left ${error ? 'field-error' : ''}`} />
+        {error ? <p className="flex items-center gap-1 text-[11px] font-bold text-danger mt-2"><AlertCircle size={13} /> {error}</p> : <p className="text-[11px] font-medium text-ink-400 mt-2">سيصلك رمز من {OTP_LENGTH} أرقام (للتجربة: {DEMO_OTP})</p>}
+        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">{loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال رمز الاستعادة'}</button>
+      </form>
+      <div className="flex-1" />
+      <div className="px-6 pb-5 text-center">
+        <button onClick={() => navigate('support')} className="text-[12px] font-bold text-primary">لا أملك الوصول لأي منهما — تواصل مع الدعم</button>
+      </div>
+      <HomeIndicator />
+    </div>
   )
 }
 
@@ -435,7 +518,7 @@ export function LoginSuccess() {
 //  إنشاء حساب جديد (CUS-008) + نجاح (CUS-009) + فشل (CUS-010)
 // ─────────────────────────────────────────────────────────────
 export function Register() {
-  const { navigate, dispatch, back, current } = useApp()
+  const { navigate, dispatch, back, current, state } = useApp()
   const preset = current.params?.preset
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', agree: false })
   const [errors, setErrors] = useState(preset === 'errors' ? { name: 'أدخل الاسم الكامل (3 أحرف على الأقل)', email: 'البريد الإلكتروني غير صالح', phone: 'رقم الجوال يجب أن يبدأ بـ 7 ويتكون من 9 أرقام', password: 'كلمة المرور 8 أحرف على الأقل', agree: 'يجب الموافقة على الشروط' } : {})
@@ -501,7 +584,7 @@ export function Register() {
         <label className="flex items-start gap-2 text-[11px] font-medium text-ink-500 cursor-pointer">
           <input type="checkbox" checked={form.agree} onChange={set('agree')} className="mt-0.5 w-4 h-4 accent-primary" />
           <span>
-            أوافق على <b className="text-primary">شروط الاستخدام</b> و <b className="text-primary">سياسة الخصوصية</b> الخاصة بمنصة جديد.
+            أوافق على <button type="button" onClick={() => navigate('legal', { doc: 'terms' })} className="font-bold text-primary underline underline-offset-2">شروط الاستخدام</button> و <button type="button" onClick={() => navigate('legal', { doc: 'privacy' })} className="font-bold text-primary underline underline-offset-2">سياسة الخصوصية</button> الخاصة بمنصة جديد.
           </span>
         </label>
         {errors.agree && <p className="text-[11px] font-bold text-danger -mt-2">{errors.agree}</p>}
