@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { MapPin, Navigation, Check, Plus, ChevronLeft, Search, SlidersHorizontal, Bell, ShoppingBag, Sparkles, ArrowRight, Store, X, Heart, Trash2, ShieldCheck, Clock, LocateFixed, MapPinOff, ShoppingCart, Filter, PackageX, Phone, Truck, UserRound, Info } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, SectionHeader, ProductThumb, StoreAvatar, Rating, VerifiedBadge, StateScreen, ProductCard, FavoriteButton, AddToCartButton, Stepper, KeyValue, Logo, StoreMapPreview } from '../components/ui'
+import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, SectionHeader, ProductThumb, StoreAvatar, Rating, VerifiedBadge, StateScreen, ProductCard, FavoriteButton, AddToCartButton, Stepper, KeyValue, Logo, StoreMapPreview, AvailabilityBadge } from '../components/ui'
 import { AREAS, CATEGORIES, CITY, PRODUCTS, STORES, TRENDING_SEARCHES, productById, storeById, fmt } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
@@ -102,83 +102,83 @@ export function LocationDenied() {
 //  تحديد موقع التوصيل والعناوين المحفوظة (CUS-011 / CUS-040)
 // ─────────────────────────────────────────────────────────────
 export function Addresses() {
-  const { state, dispatch, navigate, canGoBack, switchTab, showToast, back } = useApp()
-  const [sel, setSel] = useState(state.addressId)
-  const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', details: '' })
+  const { state, dispatch, navigate, canGoBack, switchTab, showToast, back, currentAddress } = useApp()
+  // موقع توصيل واحد لكل حساب — يُعرض ويُحدَّث هنا (يدوياً أو عبر الخريطة)، ولا تُنشأ عناوين متعددة
+  const [editing, setEditing] = useState(!currentAddress)
+  const [form, setForm] = useState({ title: currentAddress?.title || 'موقعي', details: currentAddress?.details?.replace(`، ${CITY}`, '') || '', phone: currentAddress?.phone || '' })
+  const [errors, setErrors] = useState({})
+  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: undefined }) }
   const confirm = () => {
-    dispatch({ type: 'SET_ADDRESS', addressId: sel })
     showToast('تم اعتماد موقع التوصيل', 'success')
     canGoBack ? back() : switchTab('home')
   }
-  const addNew = () => {
-    if (form.title.trim().length < 2 || form.details.trim().length < 5) return showToast('أكمل اسم العنوان وتفاصيله', 'danger')
-    const id = `a${Date.now()}`
-    dispatch({ type: 'ADD_ADDRESS', address: { id, title: form.title.trim(), details: `${form.details.trim()}، ${CITY}`, phone: '773030064' } })
-    setSel(id) // اختيار العنوان الجديد تلقائياً
-    setAdding(false)
-    setForm({ title: '', details: '' })
-    showToast('تمت إضافة العنوان الجديد', 'success')
+  const save = () => {
+    const er = {}
+    if (form.title.trim().length < 2) er.title = 'اسم الموقع مطلوب'
+    if (form.details.trim().length < 5) er.details = 'اكتب تفاصيل الموقع (الحي، الشارع، أقرب معلم)'
+    if (!/^(\+?967)?7\d{8}$/.test(form.phone.replace(/\s/g, ''))) er.phone = 'رقم جوال صحيح يبدأ بـ 7 (9 أرقام)'
+    setErrors(er)
+    if (Object.keys(er).length) return showToast('أكمل بيانات الموقع', 'danger')
+    dispatch({ type: 'UPDATE_ADDRESS', patch: { title: form.title.trim(), details: `${form.details.trim()}، ${CITY}`, phone: form.phone.replace(/\s/g, '') } })
+    setEditing(false)
+    showToast('تم تحديث موقعك', 'success')
   }
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title={canGoBack ? 'تغيير موقع التوصيل' : 'تحديد موقع التوصيل'} subtitle={canGoBack ? `عناوينك المحفوظة في ${CITY}:` : 'اختر عنوانك أو حدد موقعك الحالي لعرض المتاجر الأقرب إليك'} code={canGoBack ? 'CUS-040' : undefined} />
+      <TopBar title={canGoBack ? 'تغيير موقع التوصيل' : 'تحديد موقع التوصيل'} subtitle={`لكل حساب موقع توصيل واحد في ${CITY} يمكنك تحديثه في أي وقت`} />
       <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-4">
-        {!canGoBack && (
-          <button onClick={() => navigate('mapPin')} className="w-full card p-4 flex items-center gap-3 text-right hover:border-primary transition">
-            <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
-              <Navigation size={20} strokeWidth={2.2} />
-            </div>
-            <div className="flex-1">
-              <div className="text-[14px] font-bold text-primary">استخدم موقعي الحالي (GPS)</div>
-              <div className="text-[11px] font-medium text-ink-500">تحديد تلقائي لمنطقتك على الخريطة</div>
-            </div>
-            <ChevronLeft size={18} className="text-ink-400" />
-          </button>
-        )}
+        <button onClick={() => navigate('mapPin')} className="w-full card p-4 flex items-center gap-3 text-right hover:border-primary transition">
+          <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
+            <Navigation size={20} strokeWidth={2.2} />
+          </div>
+          <div className="flex-1">
+            <div className="text-[14px] font-bold text-primary">تحديث الموقع من الخريطة (GPS)</div>
+            <div className="text-[11px] font-medium text-ink-500">تحديد تلقائي لمنطقتك على الخريطة</div>
+          </div>
+          <ChevronLeft size={18} className="text-ink-400" />
+        </button>
+
         <div>
-          <p className="text-[13px] font-bold text-ink-900 mb-2">عناويني المحفوظة</p>
-          <div className="space-y-2.5">
-            {state.addresses.map((a) => {
-              const active = sel === a.id
-              return (
-                <button key={a.id} onClick={() => setSel(a.id)} className={`w-full card p-4 flex items-start gap-3 text-right transition ${active ? 'border-2 border-primary bg-primary-50/40' : ''}`}>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${active ? 'bg-primary border-primary text-white' : 'border-ink-300'}`}>{active && <Check size={13} strokeWidth={3.5} />}</div>
-                  <div className="flex-1">
-                    <div className="text-[14px] font-bold text-ink-900">{a.title}</div>
-                    <div className="text-[11px] font-medium text-ink-500 mt-0.5">{a.details}</div>
-                    <div className="text-[11px] font-bold text-primary mt-1 tabular" dir="ltr">{a.phone}</div>
-                  </div>
-                  <MapPin size={18} className={active ? 'text-primary' : 'text-ink-300'} />
-                </button>
-              )
-            })}
-          </div>
+          <p className="text-[13px] font-bold text-ink-900 mb-2">موقع التوصيل الحالي</p>
+          {currentAddress && !editing ? (
+            <div className="card p-4 border-2 border-primary bg-primary-50/40 flex items-start gap-3 text-right">
+              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0 mt-0.5"><Check size={13} strokeWidth={3.5} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] font-bold text-ink-900">{currentAddress.title}</div>
+                <div className="text-[11px] font-medium text-ink-500 mt-0.5">{currentAddress.details}</div>
+                <div className="text-[11px] font-bold text-primary mt-1 tabular" dir="ltr">{currentAddress.phone}</div>
+              </div>
+              <button onClick={() => setEditing(true)} className="text-[11px] font-bold text-secondary shrink-0">تعديل يدوياً</button>
+            </div>
+          ) : (
+            <div className="card p-4 space-y-3 animate-slide-up">
+              <div>
+                <label className="label">اسم الموقع</label>
+                <input className={`field ${errors.title ? 'field-error' : ''}`} placeholder="مثال: المنزل" value={form.title} onChange={set('title')} />
+                {errors.title && <p className="text-[11px] font-bold text-danger mt-1">{errors.title}</p>}
+              </div>
+              <div>
+                <label className="label">التفاصيل (الحي، الشارع، أقرب معلم)</label>
+                <input className={`field ${errors.details ? 'field-error' : ''}`} placeholder="الحوبان، خلف مستشفى الثورة" value={form.details} onChange={set('details')} />
+                {errors.details && <p className="text-[11px] font-bold text-danger mt-1">{errors.details}</p>}
+              </div>
+              <div>
+                <label className="label">رقم الجوال للتواصل عند التوصيل</label>
+                <input dir="ltr" inputMode="tel" className={`field text-left tabular ${errors.phone ? 'field-error' : ''}`} placeholder="7xxxxxxxx" value={form.phone} onChange={set('phone')} />
+                {errors.phone && <p className="text-[11px] font-bold text-danger mt-1">{errors.phone}</p>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={save} className="flex-1 btn-primary btn-md">حفظ الموقع</button>
+                {currentAddress && <button onClick={() => setEditing(false)} className="btn-ghost btn-md">إلغاء</button>}
+              </div>
+            </div>
+          )}
         </div>
-        {adding ? (
-          <div className="card p-4 space-y-3 animate-slide-up">
-            <div>
-              <label className="label">اسم العنوان</label>
-              <input className="field" placeholder="مثال: بيت العائلة" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">التفاصيل (الحي، الشارع، أقرب معلم)</label>
-              <input className="field" placeholder="الحوبان، خلف مستشفى الثورة" value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={addNew} className="flex-1 btn-primary btn-md">حفظ العنوان</button>
-              <button onClick={() => setAdding(false)} className="btn-ghost btn-md">إلغاء</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setAdding(true)} className="w-full h-12 rounded-card border-2 border-dashed border-primary-300 text-primary text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary-50 transition">
-            <Plus size={16} strokeWidth={2.6} /> إضافة عنوان جديد على الخريطة
-          </button>
-        )}
+        <p className="text-[10px] text-ink-400 leading-relaxed px-1">يُستخدم هذا الموقع لعرض المتاجر الأقرب وحساب التوصيل، ويُطلب تأكيد بيانات الاستلام عند كل طلب.</p>
       </div>
       <div className="px-5 pb-4 pt-2 bg-ink-50">
-        <button onClick={confirm} className="w-full btn-primary btn-lg">{canGoBack ? 'حفظ واعتماد هذا الموقع' : 'تأكيد الموقع ومتابعة التسوق'}</button>
+        <button onClick={confirm} disabled={!currentAddress || editing} className="w-full btn-primary btn-lg">{canGoBack ? 'حفظ واعتماد هذا الموقع' : 'تأكيد الموقع ومتابعة التسوق'}</button>
       </div>
       <HomeIndicator />
     </div>
@@ -217,8 +217,8 @@ export function MapPinScreen() {
           <div className="flex gap-2 mt-4">
             <button
               onClick={() => {
-                dispatch({ type: 'SET_ADDRESS', addressId: 'a2' })
-                showToast('تم تأكيد الموقع', 'success')
+                dispatch({ type: 'UPDATE_ADDRESS', patch: { title: 'موقعي', details: `شارع جمال، جوار بريد تعز المركزي، ${CITY}` } })
+                showToast('تم تحديث موقعك من الخريطة', 'success')
                 switchTab('home')
               }}
               className="flex-1 btn-primary btn-md"
@@ -241,7 +241,6 @@ export function Home() {
   const { navigate, switchTab, currentAddress, cartCount, state } = useApp()
   const [cat, setCat] = useState('all')
   const featured = useMemo(() => PRODUCTS.filter((p) => !p.deleted && (cat === 'all' || p.category === cat) && p.stock > 0), [cat, state.catalogVersion])
-  const unread = state.seenNotifications ? 0 : 3
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
       <div className="bg-primary text-white rounded-b-[28px] shadow-brand relative overflow-hidden">
@@ -262,12 +261,8 @@ export function Home() {
               </div>
             </button>
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate('notifications')} className="relative w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" aria-label="التنبيهات">
-                <Bell size={18} strokeWidth={2.2} />
-                {unread > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary text-[9px] font-extrabold flex items-center justify-center">{unread}</span>}
-              </button>
               <button onClick={() => navigate('cart')} className="relative w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" aria-label="السلة">
-                <ShoppingBag size={18} strokeWidth={2.2} />
+                <ShoppingCart size={18} strokeWidth={2.2} />
                 {cartCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-secondary text-[9px] font-extrabold flex items-center justify-center tabular animate-pop">{cartCount}</span>}
               </button>
             </div>
@@ -277,7 +272,7 @@ export function Home() {
               <Search size={16} className="text-ink-400" />
               ابحث عن منتج، متجر، أو علامة...
             </button>
-            <button onClick={() => navigate('filters')} className="w-11 h-11 rounded-2xl bg-secondary text-white flex items-center justify-center shadow-accent" aria-label="الفلاتر">
+            <button onClick={() => navigate('search', { q: '', filters: true })} className="w-11 h-11 rounded-2xl bg-secondary text-white flex items-center justify-center shadow-accent" aria-label="الفلاتر">
               <SlidersHorizontal size={18} strokeWidth={2.2} />
             </button>
           </div>
@@ -289,9 +284,9 @@ export function Home() {
         <div className="px-4 pt-4">
           <div className="relative overflow-hidden rounded-modal bg-gradient-to-l from-secondary to-secondary-400 text-white p-4 shadow-accent">
             <Sparkles className="absolute left-4 top-3 text-white/25" size={80} strokeWidth={1.2} />
-            <span className="inline-block bg-white/20 rounded-full px-2.5 h-5 text-[10px] font-bold leading-5">عرض اليوم الخاص</span>
-            <h2 className="text-[20px] font-black mt-2 leading-tight">خصومات تصل 50%</h2>
-            <p className="text-[12px] font-medium text-white/90">على الأجهزة الإلكترونية والساعات</p>
+            <span className="inline-block bg-white/20 rounded-full px-2.5 h-5 text-[10px] font-bold leading-5">جديد في {CITY}</span>
+            <h2 className="text-[20px] font-black mt-2 leading-tight">توصيل مجاني داخل المدينة</h2>
+            <p className="text-[12px] font-medium text-white/90">من متاجر معتمدة — الأجهزة الإلكترونية والساعات وأكثر</p>
             <button onClick={() => setCat('electronics')} className="mt-3 h-8 px-4 rounded-full bg-white text-secondary text-[12px] font-bold">تسوق الآن</button>
           </div>
         </div>
@@ -407,11 +402,14 @@ export function NearbyStores() {
 //  بطاقة المنتج المدمجة هنا مطابقة للتصميم (صورة كبيرة + الاسم بسطرين + السعر + زر «+» فعلي يضيف للسلة)
 // ─────────────────────────────────────────────────────────────
 function StoreProductCard({ product, onOpen }) {
-  const { dispatch, showToast, state } = useApp()
+  const { dispatch, showToast, state, requireAuth } = useApp()
   const inCart = state.cart[product.id] || 0
+  const closed = storeById(product.storeId)?.open === false
   const add = (e) => {
     e.stopPropagation()
+    if (closed) return showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger')
     if (product.stock <= 0) return showToast('عذراً، نفدت الكمية من المخزون', 'danger')
+    if (!requireAuth(undefined, 'سجّل الدخول كعميل لإضافة المنتجات إلى السلة')) return // الإضافة للسلة تتطلب حساب عميل مسجّلاً
     if (inCart >= product.stock) return showToast(`الحد الأقصى المتاح ${product.stock} قطعة`, 'danger')
     dispatch({ type: 'ADD_TO_CART', productId: product.id })
     showToast('أُضيف إلى السلة', 'success')
@@ -421,7 +419,7 @@ function StoreProductCard({ product, onOpen }) {
       <div className="relative">
         <ProductThumb product={product} className="w-full h-[128px]" rounded="rounded-xl" />
         <FavoriteButton productId={product.id} className="absolute top-2 left-2" />
-        {product.stock <= 0 && <Chip tone="danger" className="absolute top-2 right-2">نفدت الكمية</Chip>}
+        <AvailabilityBadge stock={product.stock} className="absolute top-2 right-2 shadow-card" />
       </div>
       <h4 className="text-[12px] font-bold text-ink-900 leading-snug line-clamp-2 min-h-[34px] mt-2.5">{product.name}</h4>
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -534,6 +532,11 @@ export function StoreScreen() {
 
         {/* قائمة المنتجات */}
         <div className="px-4 pt-5 pb-28">
+          {!store.open && (
+            <div className="rounded-card bg-danger-50 border border-danger-100 px-3 py-2.5 mb-3 flex items-center gap-2 text-[11px] font-bold text-danger" role="status">
+              <Clock size={14} className="shrink-0" /> المتجر مغلق حالياً ولا يستقبل طلبات جديدة — يمكنك تصفح المنتجات فقط
+            </div>
+          )}
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[16px] font-extrabold text-ink-900">قائمة منتجات المتجر</h2>
             <span className="text-[12px] font-medium text-ink-400 tabular">{products.length} منتج</span>
@@ -560,15 +563,18 @@ export function StoreScreen() {
 //  تفاصيل المنتج (CUS-021) — زر الإضافة يعمل فعلياً مع عدّاد
 // ─────────────────────────────────────────────────────────────
 export function ProductScreen() {
-  const { current, navigate, back, dispatch, showToast, cartCount, state } = useApp()
+  const { current, navigate, back, dispatch, showToast, cartCount, state, requireAuth } = useApp()
   const product = productById(current.params.id)
   const store = storeById(product.storeId)
   const [qty, setQty] = useState(1)
   const inCart = state.cart[product.id] || 0
-  const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0
   const soldOut = product.stock <= 0
+  const remaining = Math.max(0, product.stock - inCart) // المتبقي القابل للإضافة بعد ما في السلة
+  const closed = store?.open === false // المتجر مغلق: لا يستقبل طلبات جديدة
   const add = () => {
+    if (closed) return showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger')
     if (soldOut) return navigate('outOfStock', { id: product.id })
+    if (!requireAuth(undefined, 'سجّل الدخول كعميل لإضافة المنتجات إلى السلة')) return // الإضافة للسلة تتطلب حساب عميل مسجّلاً
     if (inCart + qty > product.stock) return showToast(`المتاح في المخزون ${product.stock} قطعة فقط`, 'danger')
     dispatch({ type: 'ADD_TO_CART', productId: product.id, qty })
     showToast(`أُضيف ${qty} × ${product.shortName} إلى السلة`, 'success')
@@ -605,15 +611,15 @@ export function ProductScreen() {
           <h1 className="text-[18px] font-extrabold text-ink-900 leading-snug mt-1">{product.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {soldOut ? <Chip tone="danger">نفدت الكمية</Chip> : <Chip tone="success">متوفر في المخزون ({product.stock})</Chip>}
-            <Chip tone="primary">ضمان الجودة</Chip>
+            {closed && <Chip tone="danger">المتجر مغلق حالياً</Chip>}
+            <Chip tone="primary">ضمان التاجر</Chip>
             {product.badge && !soldOut && <Chip tone="secondary">{product.badge}</Chip>}
           </div>
           <div className="card p-4 mt-4 flex items-center justify-between bg-ink-50">
             <div>
               <p className="text-[11px] font-medium text-ink-500">السعر الإجمالي</p>
-              <Price value={product.price} size="lg" old={product.oldPrice} />
+              <Price value={product.price} size="lg" />
             </div>
-            {discount > 0 && <Chip tone="solidSecondary" className="!h-7 !text-[11px]">وفر {discount}%</Chip>}
           </div>
           <h3 className="text-[15px] font-extrabold text-ink-900 mt-6">الوصف والمميزات</h3>
           <p className="text-[13px] font-medium text-ink-600 leading-relaxed mt-1.5">{product.description}</p>
@@ -630,10 +636,10 @@ export function ProductScreen() {
       </div>
       <div className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur border-t border-ink-100 px-5 pt-3 pb-2">
         <div className="flex items-center gap-3">
-          <Stepper value={qty} onChange={setQty} min={1} max={Math.max(1, product.stock)} />
-          <button onClick={add} className={`flex-1 btn-lg ${soldOut ? 'btn-ghost' : 'btn-primary'}`}>
-            <ShoppingBag size={18} strokeWidth={2.4} />
-            {soldOut ? 'نفدت الكمية' : inCart ? `إضافة المزيد (في السلة ${inCart})` : 'إضافة إلى السلة'}
+          <Stepper value={qty} onChange={setQty} min={1} max={Math.max(1, remaining)} maxHint={soldOut ? false : remaining === 0 ? `أقصى كمية متاحة — لديك ${inCart} في السلة` : inCart > 0 ? `أقصى كمية متاحة ${remaining} (لديك ${inCart} في السلة)` : `أقصى كمية متاحة (${product.stock})`} />
+          <button onClick={add} className={`flex-1 btn-lg ${soldOut || closed ? 'btn-ghost' : 'btn-primary'}`}>
+            <ShoppingCart size={18} strokeWidth={2.4} />
+            {closed ? 'المتجر مغلق حالياً' : soldOut ? 'نفدت الكمية' : inCart ? `إضافة المزيد (في السلة ${inCart})` : 'إضافة إلى السلة'}
           </button>
         </div>
         <HomeIndicator />
@@ -648,30 +654,73 @@ export function ProductScreen() {
 export function SearchScreen() {
   const { navigate, current, state } = useApp()
   const [q, setQ] = useState(current.params?.q ?? '')
+  // الفلترة مدمجة في نفس شاشة البحث: ترتيب + تصنيف + حد أقصى للسعر + المتوفر فقط
   const [sort, setSort] = useState('all')
+  const [cat, setCat] = useState('all')
+  const [maxPrice, setMaxPrice] = useState(0) // 0 = بلا حد
+  const [inStockOnly, setInStockOnly] = useState(false)
+  const [showFilters, setShowFilters] = useState(!!current.params?.filters)
+  const activeFilters = (cat !== 'all' ? 1 : 0) + (maxPrice ? 1 : 0) + (inStockOnly ? 1 : 0)
+  const resetFilters = () => { setCat('all'); setMaxPrice(0); setInStockOnly(false); setSort('all') }
   const results = useMemo(() => {
     const t = q.trim()
-    if (!t && current.params?.q === undefined) return null
+    if (!t && current.params?.q === undefined && !activeFilters) return null
     let list = PRODUCTS.filter((p) => !p.deleted).filter((p) => !t || p.name.includes(t) || p.shortName.includes(t) || CATEGORIES.find((c) => c.id === p.category)?.label.includes(t) || storeById(p.storeId).name.includes(t))
+    if (cat !== 'all') list = list.filter((p) => p.category === cat)
+    if (maxPrice) list = list.filter((p) => p.price <= maxPrice)
+    if (inStockOnly) list = list.filter((p) => p.stock > 0)
     if (sort === 'cheap') list = [...list].sort((a, b) => a.price - b.price)
     if (sort === 'rated') list = [...list].sort((a, b) => b.sold - a.sold)
     return list
-  }, [q, sort, current.params, state.catalogVersion])
+  }, [q, sort, cat, maxPrice, inStockOnly, activeFilters, current.params, state.catalogVersion])
+  // المنتجات المقترحة (تظهر في الحالة الفارغة كبديل مباشر)
+  const suggested = useMemo(() => PRODUCTS.filter((p) => !p.deleted && p.stock > 0).sort((a, b) => b.sold - a.sold).slice(0, 4), [state.catalogVersion])
+  const backToSuggested = () => { setQ(''); resetFilters(); navigate('search', {}, { replace: true }) }
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
       <StatusBar />
       <div className="bg-white border-b border-ink-100 px-4 pb-3">
         <h1 className="text-[18px] font-extrabold text-ink-900 mb-2">البحث الذكي</h1>
-        <div className="relative">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن منتج، متجر، أو تصنيف..." className="field pr-11 bg-ink-100" autoFocus />
-          <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400" />
-          {q && <button onClick={() => setQ('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"><X size={16} /></button>}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن منتج، متجر، أو تصنيف..." className="field pr-11 bg-ink-100" autoFocus />
+            <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400" />
+            {q && <button onClick={() => setQ('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" aria-label="مسح"><X size={16} /></button>}
+          </div>
+          <button onClick={() => setShowFilters((v) => !v)} className={`relative w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition ${showFilters || activeFilters ? 'bg-secondary text-white shadow-accent' : 'bg-ink-100 text-ink-700'}`} aria-label="الفلاتر">
+            <SlidersHorizontal size={18} strokeWidth={2.2} />
+            {activeFilters > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-primary text-white text-[9px] font-extrabold flex items-center justify-center">{activeFilters}</span>}
+          </button>
         </div>
-        {results && (
-          <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
-            {[['all', 'الكل'], ['near', 'الأقرب إليك'], ['cheap', 'الأرخص سعراً'], ['rated', 'الأعلى تقييماً']].map(([k, l]) => (
-              <button key={k} onClick={() => setSort(k)} className={`h-8 px-3.5 rounded-full text-[12px] font-bold whitespace-nowrap ${sort === k ? 'bg-primary text-white' : 'bg-ink-100 text-ink-700'}`}>{l}</button>
-            ))}
+        <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+          {[['all', 'الكل'], ['near', 'الأقرب إليك'], ['cheap', 'الأرخص سعراً'], ['rated', 'الأعلى تقييماً']].map(([k, l]) => (
+            <button key={k} onClick={() => setSort(k)} className={`h-8 px-3.5 rounded-full text-[12px] font-bold whitespace-nowrap ${sort === k ? 'bg-primary text-white' : 'bg-ink-100 text-ink-700'}`}>{l}</button>
+          ))}
+        </div>
+        {showFilters && (
+          <div className="mt-3 rounded-card bg-ink-50 border border-ink-100 p-3 space-y-3 animate-slide-up">
+            <div>
+              <p className="text-[11px] font-bold text-ink-500 mb-1.5">التصنيف</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {CATEGORIES.map((c) => (
+                  <button key={c.id} onClick={() => setCat(c.id)} className={`h-7 px-3 rounded-full text-[11px] font-bold ${cat === c.id ? 'bg-secondary text-white' : 'bg-white border border-ink-200 text-ink-700'}`}>{c.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-ink-500 mb-1.5">الحد الأقصى للسعر</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {[[0, 'بلا حد'], [10000, 'حتى 10,000'], [20000, 'حتى 20,000'], [40000, 'حتى 40,000']].map(([v, l]) => (
+                  <button key={v} onClick={() => setMaxPrice(v)} className={`h-7 px-3 rounded-full text-[11px] font-bold tabular ${maxPrice === v ? 'bg-secondary text-white' : 'bg-white border border-ink-200 text-ink-700'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-[12px] font-bold text-ink-800 cursor-pointer">
+                <input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} className="w-4 h-4 accent-primary" /> المتوفر في المخزون فقط
+              </label>
+              {activeFilters > 0 && <button onClick={resetFilters} className="text-[11px] font-bold text-danger">مسح الفلاتر</button>}
+            </div>
           </div>
         )}
       </div>
@@ -690,10 +739,16 @@ export function SearchScreen() {
                 <button key={c.id} onClick={() => setQ(c.label)} className="card p-3 text-right text-[12px] font-bold text-ink-800 hover:border-primary">{c.label}</button>
               ))}
             </div>
+            <p className="text-[13px] font-bold text-ink-900 mt-6 mb-2">منتجات مقترحة لك</p>
+            <div className="grid grid-cols-2 gap-3">
+              {suggested.map((p) => (
+                <ProductCard key={p.id} product={p} onOpen={(pr) => navigate('product', { id: pr.id })} />
+              ))}
+            </div>
           </>
         ) : results.length ? (
           <>
-            <p className="text-[11px] font-medium text-ink-500 mb-3">تم العثور على {results.length} نتيجة{q && <> لـ "<b className="text-ink-900">{q}</b>"</>}</p>
+            <p className="text-[11px] font-medium text-ink-500 mb-3">تم العثور على {results.length} نتيجة{q && <> لـ "<b className="text-ink-900">{q}</b>"</>}{activeFilters > 0 && <> · {activeFilters} فلتر مفعّل</>}</p>
             <div className="grid grid-cols-2 gap-3">
               {results.map((p) => (
                 <ProductCard key={p.id} product={p} onOpen={(pr) => navigate('product', { id: pr.id })} />
@@ -701,11 +756,31 @@ export function SearchScreen() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center text-center pt-16 px-6">
-            <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><Search size={40} strokeWidth={1.6} /></div>
-            <h2 className="text-[20px] font-extrabold">لم نعثر على أي نتائج</h2>
-            <p className="text-[12px] text-ink-500 mt-2">تأكد من كتابة الكلمات بشكل صحيح، أو جرب البحث بكلمات عامة أخرى.</p>
-            <button onClick={() => setQ('')} className="btn-outline btn-md mt-6">مسح البحث</button>
+          <div className="flex flex-col items-center text-center pt-6 px-4">
+            {/* إيضاح الحالة الفارغة: عدسة بحث فوق بطاقات فارغة */}
+            <svg width="180" height="130" viewBox="0 0 180 130" fill="none" aria-hidden="true" className="mb-4">
+              <rect x="12" y="34" width="46" height="60" rx="10" fill="#F3F4F6" />
+              <rect x="20" y="42" width="30" height="24" rx="6" fill="#E5E7EB" />
+              <rect x="20" y="72" width="30" height="5" rx="2.5" fill="#E5E7EB" />
+              <rect x="20" y="81" width="18" height="5" rx="2.5" fill="#E5E7EB" />
+              <rect x="122" y="34" width="46" height="60" rx="10" fill="#F3F4F6" />
+              <rect x="130" y="42" width="30" height="24" rx="6" fill="#E5E7EB" />
+              <rect x="130" y="72" width="30" height="5" rx="2.5" fill="#E5E7EB" />
+              <rect x="130" y="81" width="18" height="5" rx="2.5" fill="#E5E7EB" />
+              <circle cx="90" cy="58" r="30" fill="#EDE5FA" />
+              <circle cx="90" cy="58" r="18" stroke="#5002C9" strokeWidth="5" fill="white" />
+              <line x1="103" y1="71" x2="118" y2="86" stroke="#5002C9" strokeWidth="6" strokeLinecap="round" />
+              <path d="M82 54l16 8M98 54l-16 8" stroke="#FF5715" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="40" cy="20" r="4" fill="#FFE4D6" />
+              <circle cx="146" cy="112" r="5" fill="#EDE5FA" />
+              <circle cx="24" cy="112" r="3" fill="#EDE5FA" />
+            </svg>
+            <h2 className="text-[20px] font-extrabold text-ink-900">لم نعثر على منتجات أو متاجر مطابقة</h2>
+            <p className="text-[12px] text-ink-500 mt-2 leading-relaxed max-w-[280px]">{q ? <>لا توجد نتائج لـ "<b className="text-ink-800">{q}</b>"{activeFilters > 0 && ' مع الفلاتر المفعّلة'}. </> : 'لا توجد نتائج مع الفلاتر المفعّلة. '}جرّب كلمات أعم، أو تحقق من الإملاء، أو عدّل الفلاتر.</p>
+            <div className="flex flex-col gap-2 w-full mt-6">
+              <button onClick={backToSuggested} className="w-full btn-primary btn-md"><Sparkles size={16} /> العودة إلى المنتجات المقترحة</button>
+              {activeFilters > 0 && <button onClick={resetFilters} className="w-full btn-outline btn-md">مسح الفلاتر وإعادة البحث</button>}
+            </div>
           </div>
         )}
       </div>
@@ -715,36 +790,10 @@ export function SearchScreen() {
 }
 
 export function FiltersScreen() {
-  const { back, navigate, showToast } = useApp()
-  const [sel, setSel] = useState('near')
-  return (
-    <div className="flex-1 flex flex-col bg-ink-50">
-      <StatusBar />
-      <TopBar title="الفلترة والترتيب الذكي" code="CUS-025" />
-      <div className="flex-1 px-5 py-4">
-        <p className="text-[13px] font-bold text-ink-900 mb-3">خيارات الترتيب المعتمدة:</p>
-        <div className="space-y-2.5">
-          {[['near', MapPin, 'الأقرب مسافة أولاً', `حسب موقعك الحالي في ${CITY}`], ['cheap', Filter, 'الأرخص سعراً أولاً', 'من السعر الأقل إلى الأعلى'], ['rated', Sparkles, 'الأعلى تقييماً', 'حسب تقييمات العملاء']].map(([k, Icon, t, d]) => {
-            const active = sel === k
-            return (
-              <button key={k} onClick={() => setSel(k)} className={`w-full card p-4 flex items-center gap-3 text-right ${active ? 'border-2 border-primary bg-primary-50/40' : ''}`}>
-                <Icon size={20} className={active ? 'text-primary' : 'text-ink-400'} />
-                <div className="flex-1">
-                  <div className={`text-[14px] font-bold ${active ? 'text-primary' : 'text-ink-900'}`}>{t}</div>
-                  <div className="text-[11px] text-ink-500">{d}</div>
-                </div>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${active ? 'bg-primary border-primary text-white' : 'border-ink-300'}`}>{active && <Check size={13} strokeWidth={3.5} />}</div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-      <div className="px-5 pb-4">
-        <button onClick={() => { showToast('تم تطبيق الترتيب', 'success'); navigate('search', { q: '' }, { replace: true }) }} className="w-full btn-primary btn-lg">تطبيق الترتيب</button>
-      </div>
-      <HomeIndicator />
-    </div>
-  )
+  // الفلترة والترتيب (CUS-025) أصبحا مدمجين داخل شاشة البحث نفسها — هذا المسار يفتح البحث مع لوحة الفلترة مباشرة (بلا شاشة مكررة)
+  const { navigate } = useApp()
+  useEffect(() => { navigate('search', { q: '', filters: true }, { replace: true }) }, [navigate])
+  return null
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -770,6 +819,7 @@ export function Favorites() {
               <div key={p.id} className="card overflow-hidden">
                 <div className="relative cursor-pointer" onClick={() => navigate('product', { id: p.id })}>
                   <ProductThumb product={p} className="w-full h-[112px]" rounded="rounded-none" />
+                  <AvailabilityBadge stock={p.stock} className="absolute top-2 right-2 shadow-card" />
                   <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_FAVORITE', productId: p.id }); showToast('أُزيل من المفضلة') }} className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white/90 shadow-card flex items-center justify-center text-danger"><Trash2 size={14} /></button>
                 </div>
                 <div className="p-2.5">

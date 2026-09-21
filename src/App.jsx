@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './store/AppContext'
-import { Toast, Logo } from './components/ui'
+import { Toast, Logo, OfflineBanner } from './components/ui'
 import { Splash, Onboarding, AccountType, Login, OtpSent, OtpVerify, OtpLocked, LoginSuccess, Register, RegisterSuccess, RegisterFailed, ForgotPassword } from './screens/Onboarding'
 import { LocationPermission, LocationSuccess, LocationDenied, Addresses, MapPinScreen, Home, NearbyStores, StoreScreen, ProductScreen, SearchScreen, FiltersScreen, Favorites } from './screens/Shopping'
 import { CartScreen, Checkout, OrderSuccess, OrderFailed, OutOfStock, Orders, OrderDetails, OrderCancelled, Tracking } from './screens/Cart'
 import { Account, Notifications, Support, Legal } from './screens/Account'
-import { MerchantIntro, MerchantForm, MerchantIdentity, MerchantMedia, MerchantPending, MerchantApproved, MerchantRejected, MerchantDashboard, MerchantStoreEdit, MerchantProducts, MerchantProductForm, MerchantProductSaved, MerchantProductDeleted, MerchantOrders, MerchantOrder, MerchantOrderAccepted, MerchantOrderRejected, MerchantStats, MerchantNotifications, AdminLogin } from './screens/Merchant'
+import { MerchantIntro, MerchantForm, MerchantIdentity, MerchantMedia, MerchantPending, MerchantApproved, MerchantRejected, MerchantBanned, MerchantDashboard, MerchantStoreEdit, MerchantProducts, MerchantProductForm, MerchantProductSaved, MerchantProductDeleted, MerchantOrders, MerchantOrder, MerchantOrderAccepted, MerchantOrderRejected, MerchantStats, MerchantNotifications, AdminLogin } from './screens/Merchant'
 import { ComponentsShowcase } from './gallery/ComponentsShowcase'
 import { GALLERY, GALLERY_ITEMS, GALLERY_COUNT, stateForItem } from './gallery/catalog'
-import { Smartphone, RotateCcw, ShoppingBag, Store, KeyRound, LayoutGrid, Play, ArrowRight, ChevronLeft, ChevronRight, Search, Layers, Sparkles, Palette, UserRound, ShieldCheck, RefreshCw, X } from 'lucide-react'
+import { Smartphone, RotateCcw, ShoppingBag, Store, KeyRound, Ban, LayoutGrid, Play, ArrowRight, ChevronLeft, ChevronRight, Search, Layers, Sparkles, Palette, UserRound, ShieldCheck, RefreshCw, X, Wifi, WifiOff } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────
 //  جدول الشاشات (Router بسيط قائم على مكدس داخل Context)
@@ -63,6 +63,7 @@ export const SCREENS = {
   merchantPending: MerchantPending,
   merchantApproved: MerchantApproved,
   merchantRejected: MerchantRejected,
+  merchantBanned: MerchantBanned,
   'm-dashboard': MerchantDashboard,
   'm-store-edit': MerchantStoreEdit,
   'm-products': MerchantProducts,
@@ -82,8 +83,9 @@ export const SCREENS = {
 }
 
 function ScreenRouter() {
-  const { current } = useApp()
-  const Screen = SCREENS[current.name] || Home
+  const { current, isBanned } = useApp()
+  // التاجر المحظور لا يصل إلى أي شاشة من شاشات لوحة التاجر — تُعرض شاشة الحظر بدلاً منها
+  const Screen = isBanned && current.name.startsWith('m-') ? MerchantBanned : SCREENS[current.name] || Home
   return (
     <div key={`${current.name}-${JSON.stringify(current.params || {})}`} className="absolute inset-0 flex flex-col animate-fade-in [&>*]:min-h-0 [&>*]:max-h-full [&>*]:overflow-hidden">
       <Screen />
@@ -106,6 +108,7 @@ function PhoneFrame({ children }) {
       <div className="absolute inset-3 rounded-[44px] overflow-hidden bg-white" style={{ width: 390, height: 844 }}>
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[120px] h-[34px] rounded-full bg-ink-900 z-[60] pointer-events-none" />
         <div className="absolute inset-0 overflow-hidden">{children}</div>
+        <OfflineBanner />
         <Toast />
       </div>
     </div>
@@ -168,7 +171,7 @@ const FIXES = [
   ['Design Tokens موحّدة', '#5002C9 أساسي · #FF5715 ثانوي · سلّم رمادي واحد (ink)'],
   ['OTP = 4 أرقام', 'موحّد في كل الشاشات مع قفل بعد 3 محاولات (CUS-006)'],
   ['أرقام الطلبات JD-XXXXXX', 'صيغة واحدة في السلة والتتبع والفاتورة ولوحة التاجر'],
-  ['حساب السلة رياضياً', 'المجموع − الخصم + التوصيل = الإجمالي، بلا أرقام ثابتة'],
+  ['حساب السلة رياضياً', 'المجموع + التوصيل = الإجمالي، بلا أرقام ثابتة'],
   ['شريط تنقل موحّد RTL', 'ترتيب وأيقونات ثابتة للعميل وللتاجر مع شارات حيّة'],
   ['دورة حياة الطلب', 'جديد → مقبول → تحضير → جاهز → توصيل → تم، مزامنة تاجر ↔ عميل'],
 ]
@@ -416,9 +419,11 @@ function DemoPanel({ go }) {
         <p className="text-[11px] font-extrabold text-ink-500 px-1 mb-1">اختصارات العرض</p>
         <Btn onClick={() => navigate('splash', {}, { resetTo: true })} Icon={RotateCcw}>إعادة التشغيل من البداية</Btn>
         <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); switchTab('home') }} Icon={ShoppingBag}>الدخول مباشرة كعميل</Btn>
-        <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'both' }); dispatch({ type: 'LOGIN' }); switchTab('m-dashboard') }} Icon={Store}>لوحة التاجر (M-050)</Btn>
+        <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'merchant' }); dispatch({ type: 'LOGIN' }); switchTab('m-dashboard') }} Icon={Store}>لوحة التاجر (M-050)</Btn>
+        <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'merchant' }); dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'banned' }); navigate('merchantBanned', {}, { resetTo: true }) }} Icon={Ban}>محاكاة: متجر محظور</Btn>
         <Btn onClick={() => navigate('login', {}, { resetTo: true })} Icon={KeyRound}>شاشة الدخول (OTP = 1234)</Btn>
         <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'customer' }); if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'none' }); navigate('merchantIntro', {}, { resetTo: true }) }} Icon={Store}>رحلة توثيق تاجر جديد (M-042)</Btn>
+        <Btn onClick={() => dispatch({ type: 'SET_OFFLINE', offline: !state.offline })} Icon={state.offline ? Wifi : WifiOff}>{state.offline ? 'محاكاة: عودة الاتصال' : 'محاكاة: انقطاع الإنترنت'}</Btn>
         <Btn onClick={() => go('/gallery')} Icon={LayoutGrid}>الانتقال إلى معرض الشاشات</Btn>
       </div>
 
@@ -430,7 +435,7 @@ function DemoPanel({ go }) {
           <dt className="text-ink-500">إجمالي السلة</dt><dd className="font-bold text-secondary">{new Intl.NumberFormat('en-US').format(cart.total)} ر.ي</dd>
           <dt className="text-ink-500">المفضلة</dt><dd className="font-bold">{state.favorites.size}</dd>
           <dt className="text-ink-500">الطلبات</dt><dd className="font-bold">{state.orders.length}</dd>
-          <dt className="text-ink-500">المصادقة</dt><dd className="font-bold">{state.auth.status === 'authenticated' ? (state.merchantStatus === 'approved' ? 'مسجّل · تاجر' : 'مسجّل · عميل') : 'زائر'}</dd>
+          <dt className="text-ink-500">المصادقة</dt><dd className="font-bold">{state.auth.status === 'authenticated' ? (state.merchantStatus === 'approved' ? 'مسجّل · تاجر' : state.merchantStatus === 'banned' ? 'مسجّل · تاجر محظور' : 'مسجّل · عميل') : 'غير مسجّل'}</dd>
         </dl>
       </div>
 
@@ -439,7 +444,7 @@ function DemoPanel({ go }) {
         <ul className="list-disc pr-4 space-y-0.5">
           <li>الدخول: أي بريد صالح أو رقم يبدأ بـ 7 (9 أرقام)</li>
           <li>رمز التحقق OTP: <b className="text-primary">1234</b> — 3 محاولات خاطئة تقفل الحساب</li>
-          <li>كوبونات: JADEED20 · WELCOME10 · FLAT2000</li>
+          <li>الخصومات والإشعارات موقوفة مؤقتاً (قرار المنتج)</li>
           <li>بريد يحتوي "fail" ← محاكاة فشل التسجيل</li>
           <li>الطلب يتقدّم تلقائياً أو يدوياً من لوحة التاجر</li>
         </ul>

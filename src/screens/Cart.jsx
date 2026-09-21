@@ -1,36 +1,25 @@
 import React, { useState } from 'react'
-import { ShoppingBag, Trash2, Tag, X, Check, ChevronLeft, MapPin, Banknote, Wallet, CreditCard, AlertTriangle, PackageX, RefreshCcw, Truck, Bike, MessageCircle, Phone, ReceiptText, Download, Package, Clock, XCircle, ArrowRight, Store, Landmark, Upload, ImageIcon, Copy, ShieldCheck } from 'lucide-react'
+import { ShoppingBag, ShoppingCart, Trash2, Tag, X, Check, ChevronLeft, MapPin, Banknote, Wallet, CreditCard, AlertTriangle, PackageX, RefreshCcw, Truck, Bike, MessageCircle, Phone, ReceiptText, Download, Package, Clock, XCircle, ArrowRight, Store, Landmark, Upload, ImageIcon, Copy, ShieldCheck } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, Stepper, StateScreen, KeyValue, StageChip, Logo, PaymentChip, StoreAvatar } from '../components/ui'
-import { COUPONS, COURIER, CURRENCY, ORDER_STAGES, STAGE_INDEX, fmt, productById, storeById, CITY } from '../data/mock'
+import { COURIER, CURRENCY, ORDER_STAGES, STAGE_INDEX, fmt, productById, storeById, CITY } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  سلة المشتريات (CUS-026) — كل الأرقام محسوبة من computeCart
 // ─────────────────────────────────────────────────────────────
 export function CartScreen() {
-  const { cart, state, dispatch, navigate, showToast, switchTab, canGoBack, requireAuth } = useApp()
-  const [code, setCode] = useState(state.coupon || '')
-  const [couponError, setCouponError] = useState('')
-
-  const applyCoupon = () => {
-    const c = code.trim().toUpperCase()
-    if (!c) return
-    if (!COUPONS[c]) {
-      setCouponError('كود الكوبون غير صالح أو منتهي الصلاحية')
-      return
-    }
-    setCouponError('')
-    dispatch({ type: 'APPLY_COUPON', code: c })
-    showToast(`تم تطبيق الكوبون: ${COUPONS[c].label}`, 'success')
-  }
+  const { cart, state, dispatch, navigate, showToast, switchTab, canGoBack, requireAuth, current } = useApp()
+  // نظام الكوبونات/الخصومات موقوف مؤقتاً (قرار المنتج) — لا يُعرض قسم الكوبون في السلة
+  const demoToast = current?.params?.demoToast // معرض الشاشات: إظهار تنبيه «تم تحديث السلة» عند الفتح
+  React.useEffect(() => { if (demoToast) showToast(demoToast, 'success') }, [demoToast, showToast])
 
   if (!cart.lines.length) {
     return (
       <div className="flex-1 flex flex-col bg-ink-50 relative">
         <StatusBar />
-        <TopBar title="سلة المشتريات" right={<ShoppingBag className="text-primary" size={22} />} />
+        <TopBar title="سلة المشتريات" right={<ShoppingCart className="text-primary" size={22} />} />
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-10">
-          <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><ShoppingBag size={40} strokeWidth={1.6} /></div>
+          <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><ShoppingCart size={40} strokeWidth={1.6} /></div>
           <h2 className="text-[20px] font-extrabold">سلتك فارغة حالياً</h2>
           <p className="text-[12px] text-ink-500 mt-2 leading-relaxed">لم تقم بإضافة أي منتجات للسلة بعد. تصفح المتاجر والمنتجات المميزة في {CITY} وأضف ما يناسبك.</p>
         </div>
@@ -43,10 +32,11 @@ export function CartScreen() {
   }
 
   const blockedStores = cart.groups.filter((g) => !g.minOrderMet)
+  const closedStores = cart.groups.filter((g) => g.storeClosed) // متجر مغلق: لا تُستقبل طلبات جديدة له
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title="سلة المشتريات" subtitle={`${cart.itemCount} عناصر من ${cart.storeCount} ${cart.storeCount === 1 ? 'متجر' : 'متاجر'}`} right={<ShoppingBag className="text-primary" size={22} />} />
+      <TopBar title="سلة المشتريات" subtitle={`${cart.itemCount} عناصر من ${cart.storeCount} ${cart.storeCount === 1 ? 'متجر' : 'متاجر'}`} right={<ShoppingCart className="text-primary" size={22} />} />
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-4">
         {cart.storeCount > 1 && (
           <div className="rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 text-[11px] font-medium text-primary flex items-start gap-2">
@@ -63,7 +53,7 @@ export function CartScreen() {
                 <p className="text-[12px] font-extrabold text-ink-900 truncate flex items-center gap-1">{cart.storeCount > 1 && <span className="text-ink-400 font-bold">الطلب {gi + 1} ·</span>} {g.store?.name} {g.store?.verified && <ShieldCheck size={12} className="text-primary shrink-0" />}</p>
                 <p className="text-[10px] font-medium text-ink-500 flex items-center gap-1"><Truck size={11} /> التوصيل خلال {g.store?.deliveryTime} · {g.itemCount} قطعة</p>
               </div>
-              <ChevronLeft size={16} className="text-ink-400" />
+              {g.storeClosed ? <Chip tone="danger">مغلق حالياً</Chip> : <ChevronLeft size={16} className="text-ink-400" />}
             </button>
             <div className="divide-y divide-ink-100">
               {g.lines.map(({ product, qty, lineTotal }) => (
@@ -73,7 +63,7 @@ export function CartScreen() {
                     <p className="text-[12px] font-bold text-ink-900 line-clamp-2 leading-snug">{product.shortName}</p>
                     <p className="text-[10px] text-ink-400 mt-0.5">{fmt(product.price)} {CURRENCY} × {qty}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <Stepper size="sm" value={qty} max={product.stock} onChange={(v) => dispatch({ type: 'SET_QTY', productId: product.id, qty: v })} />
+                      <Stepper size="sm" value={qty} max={product.stock} maxHint onChange={(v) => dispatch({ type: 'SET_QTY', productId: product.id, qty: v })} />
                       <Price value={lineTotal} size="sm" />
                     </div>
                   </div>
@@ -91,32 +81,12 @@ export function CartScreen() {
           </div>
         ))}
 
-        {/* الكوبون */}
-        <div className="card p-4">
-          <p className="text-[13px] font-extrabold text-ink-900 mb-2 flex items-center gap-1.5"><Tag size={14} className="text-secondary" /> كوبون الخصم</p>
-          {cart.coupon ? (
-            <div className="flex items-center justify-between bg-success-50 border border-success-100 rounded-field px-3 h-11">
-              <span className="text-[12px] font-bold text-success-700 flex items-center gap-1.5"><Check size={14} strokeWidth={3} /> {cart.couponCode} — {cart.coupon.label}</span>
-              <button onClick={() => { dispatch({ type: 'REMOVE_COUPON' }); setCode('') }} className="text-ink-400 hover:text-danger" aria-label="إزالة"><X size={16} /></button>
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCouponError('') }} onKeyDown={(e) => e.key === 'Enter' && applyCoupon()} placeholder="JADEED20" dir="ltr" className={`field text-left font-bold tracking-wider ${couponError ? 'field-error' : ''}`} />
-                <button onClick={applyCoupon} className="btn-secondary btn-md shrink-0">تطبيق</button>
-              </div>
-              {couponError ? <p className="text-[11px] font-bold text-danger mt-2">{couponError}</p> : <p className="text-[10px] text-ink-400 mt-2">أكواد للتجربة: JADEED20 · WELCOME10 · FLAT2000</p>}
-            </>
-          )}
-        </div>
-
         {/* الملخص — محسوب رياضيًا (لكل متجر ثم الإجمالي) */}
         <div className="card p-4 space-y-2.5 text-[12px]">
           {cart.storeCount > 1 && cart.groups.map((g) => (
             <Row key={g.storeId} k={`${g.store?.name}:`} v={<span className="font-bold tabular text-ink-900">{fmt(g.total)} {CURRENCY}</span>} />
           ))}
           <Row k="المجموع الفرعي:" v={<Price value={cart.subtotal} size="xs" tone="ink" />} />
-          <Row k="الخصم المطبق:" v={<span className="font-extrabold text-success-700 tabular">{cart.discount ? `- ${fmt(cart.discount)} ${CURRENCY}` : '—'}</span>} tone="text-success-700" />
           <Row k="رسوم التوصيل:" v={<span className="font-bold text-success-700">{cart.deliveryFee ? `${fmt(cart.deliveryFee)} ${CURRENCY}` : `مجاني (داخل ${CITY})`}</span>} />
           <div className="border-t border-dashed border-ink-200 pt-3 flex items-center justify-between">
             <span className="text-[14px] font-extrabold text-ink-900">المجموع الكلي{cart.storeCount > 1 ? ` (${cart.storeCount} طلبات)` : ''}:</span>
@@ -125,8 +95,12 @@ export function CartScreen() {
         </div>
       </div>
       <div className="px-4 pb-4 pt-2 bg-ink-50">
-        {blockedStores.length > 0 && <p className="text-[10px] font-bold text-warning-700 text-center mb-2">أكمل الحد الأدنى لمتجر «{blockedStores[0].store.name}» أو احذف منتجاته للمتابعة</p>}
-        <button onClick={() => requireAuth({ name: 'checkout', params: {} }, 'سجّل الدخول لإتمام الطلب') && navigate('checkout')} disabled={blockedStores.length > 0} className="w-full btn-primary btn-lg">إتمام الطلب والدفع · {fmt(cart.total)} {CURRENCY}</button>
+        {closedStores.length > 0 ? (
+          <p className="text-[10px] font-bold text-danger text-center mb-2">متجر «{closedStores[0].store.name}» مغلق حالياً ولا يستقبل طلبات جديدة — احذف منتجاته أو انتظر فتحه</p>
+        ) : blockedStores.length > 0 ? (
+          <p className="text-[10px] font-bold text-warning-700 text-center mb-2">أكمل الحد الأدنى لمتجر «{blockedStores[0].store.name}» أو احذف منتجاته للمتابعة</p>
+        ) : null}
+        <button onClick={() => requireAuth({ name: 'checkout', params: {} }, 'سجّل الدخول لإتمام الطلب') && navigate('checkout')} disabled={blockedStores.length > 0 || closedStores.length > 0} className="w-full btn-primary btn-lg">إتمام الطلب والدفع · {fmt(cart.total)} {CURRENCY}</button>
       </div>
       <HomeIndicator />
     </div>
@@ -193,6 +167,18 @@ function TransferPanel({ group, receipt, onReceipt, showToast }) {
 
 export function Checkout() {
   const { cart, currentAddress, navigate, dispatch, state, showToast } = useApp()
+  // بيانات العميل المطلوبة للتوصيل: تُملأ مسبقاً من الحساب/الموقع المحفوظ ويمكن تعديلها، ولا يُرسل الطلب بدونها
+  const [contact, setContact] = useState({ name: currentAddress?.name || '', phone: currentAddress?.phone || '', details: currentAddress?.details || '', notes: '' })
+  const [contactErrors, setContactErrors] = useState({})
+  const setC = (k) => (e) => { setContact({ ...contact, [k]: e.target.value }); if (contactErrors[k]) setContactErrors({ ...contactErrors, [k]: undefined }) }
+  const validateContact = () => {
+    const er = {}
+    if (contact.name.trim().length < 3) er.name = 'اسم المستلم مطلوب'
+    if (!/^(\+?967)?7\d{8}$/.test(contact.phone.replace(/\s/g, ''))) er.phone = 'رقم جوال صحيح يبدأ بـ 7 (9 أرقام)'
+    if (contact.details.trim().length < 5) er.details = 'اكتب تفاصيل العنوان (الحي، الشارع، أقرب معلم)'
+    setContactErrors(er)
+    return Object.keys(er).length === 0
+  }
   const [pay, setPay] = useState('cod')
   const [placing, setPlacing] = useState(false)
   const [simulateFail, setSimulateFail] = useState(false)
@@ -202,7 +188,12 @@ export function Checkout() {
   const payLabel = PAYMENTS.find((p) => p.key === pay).label
 
   const place = () => {
+    const closed = groups.find((g) => g.storeClosed)
+    if (closed) return showToast(`متجر «${closed.store.name}» مغلق حالياً ولا يستقبل طلبات جديدة`, 'danger')
+    if (!validateContact()) return showToast('أكمل بيانات التواصل والتوصيل أولاً', 'danger')
     if (missingReceipts.length) return showToast(`أرفق إيصال التحويل لمتجر ${missingReceipts[0].store.name}`, 'danger')
+    // حفظ بيانات التواصل في موقع الحساب الوحيد حتى تُستخدم في الطلبات القادمة
+    dispatch({ type: 'UPDATE_ADDRESS', patch: { name: contact.name.trim(), phone: contact.phone.replace(/\s/g, ''), details: contact.details.trim() } })
     setPlacing(true)
     setTimeout(() => {
       setPlacing(false)
@@ -219,6 +210,7 @@ export function Checkout() {
         paymentStatus: pay === 'transfer' ? 'pending_confirmation' : pay === 'wallet' ? 'wallet' : 'cod',
         receipt: pay === 'transfer' ? receipts[g.storeId] : null,
         addressId: state.addressId,
+        customer: { name: contact.name.trim(), phone: contact.phone.replace(/\s/g, ''), details: contact.details.trim(), notes: contact.notes.trim() || null },
         coupon: g.discount ? cart.couponCode : null,
       }))
       dispatch({ type: 'PLACE_ORDERS', orders })
@@ -238,7 +230,33 @@ export function Checkout() {
             <button onClick={() => navigate('addresses')} className="link text-secondary">تغيير</button>
           </div>
           <p className="text-[13px] font-bold text-ink-900">{currentAddress.title}</p>
-          <p className="text-[11px] text-ink-500">{currentAddress.details} · <span dir="ltr">{currentAddress.phone}</span></p>
+          <p className="text-[11px] text-ink-500">{currentAddress.details}</p>
+        </div>
+
+        {/* بيانات التواصل والاستلام — مطلوبة لإتمام الطلب */}
+        <div className="card p-4">
+          <p className="text-[13px] font-extrabold text-ink-900 mb-3 flex items-center gap-1.5"><Phone size={14} className="text-primary" /> بيانات التواصل والاستلام</p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">اسم المستلم</label>
+              <input className={`field bg-white ${contactErrors.name ? 'field-error' : ''}`} value={contact.name} onChange={setC('name')} placeholder="الاسم الكامل" />
+              {contactErrors.name && <p className="text-[11px] font-bold text-danger mt-1">{contactErrors.name}</p>}
+            </div>
+            <div>
+              <label className="label">رقم الجوال للتواصل</label>
+              <input dir="ltr" inputMode="tel" className={`field bg-white text-left tabular ${contactErrors.phone ? 'field-error' : ''}`} value={contact.phone} onChange={setC('phone')} placeholder="7xxxxxxxx" />
+              {contactErrors.phone && <p className="text-[11px] font-bold text-danger mt-1">{contactErrors.phone}</p>}
+            </div>
+            <div>
+              <label className="label">تفاصيل العنوان (الحي، الشارع، أقرب معلم)</label>
+              <input className={`field bg-white ${contactErrors.details ? 'field-error' : ''}`} value={contact.details} onChange={setC('details')} placeholder="المسبح، قرب جولة المسبح" />
+              {contactErrors.details && <p className="text-[11px] font-bold text-danger mt-1">{contactErrors.details}</p>}
+            </div>
+            <div>
+              <label className="label">ملاحظات للمندوب (اختياري)</label>
+              <input className="field bg-white" value={contact.notes} onChange={setC('notes')} placeholder="مثال: اتصل قبل الوصول" />
+            </div>
+          </div>
         </div>
 
         <div className="card p-4">
@@ -280,12 +298,11 @@ export function Checkout() {
                     <span className="font-bold tabular">{fmt(l.lineTotal)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between border-t border-dashed border-ink-200 mt-1.5 pt-1.5 font-bold text-ink-900"><span>مجموع هذا الطلب{g.discount ? ` (بعد خصم ${fmt(g.discount)})` : ''}</span><span className="tabular">{fmt(g.total)} {CURRENCY}</span></div>
+                <div className="flex justify-between border-t border-dashed border-ink-200 mt-1.5 pt-1.5 font-bold text-ink-900"><span>مجموع هذا الطلب</span><span className="tabular">{fmt(g.total)} {CURRENCY}</span></div>
               </div>
             ))}
             <div className="border-t border-ink-100 pt-2 space-y-1">
               <div className="flex justify-between text-ink-500"><span>المجموع الفرعي</span><span className="tabular">{fmt(cart.subtotal)}</span></div>
-              {cart.discount > 0 && <div className="flex justify-between text-success-700 font-bold"><span>خصم ({cart.couponCode})</span><span className="tabular">- {fmt(cart.discount)}</span></div>}
               <div className="flex justify-between text-ink-500"><span>التوصيل</span><span>{cart.deliveryFee ? fmt(cart.deliveryFee) : 'مجاني'}</span></div>
               <div className="flex justify-between text-[14px] font-extrabold text-ink-900 pt-1"><span>الإجمالي</span><Price value={cart.total} size="sm" /></div>
             </div>
@@ -402,7 +419,7 @@ export function Orders() {
               <button key={o.id} onClick={() => navigate('orderDetails', { orderId: o.id })} className="w-full card p-3 text-right active:scale-[0.99] transition">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-extrabold text-primary tabular" dir="ltr">{o.id}</span>
-                  <div className="flex items-center gap-1.5">{o.paymentStatus === 'pending_confirmation' && <PaymentChip status={o.paymentStatus} />}<StageChip stage={o.stage} /></div>
+                  <div className="flex items-center gap-1.5">{o.paymentStatus === 'pending_confirmation' && <PaymentChip status={o.paymentStatus} />}<StageChip stage={o.stage} by={o.cancelledBy} /></div>
                 </div>
                 <div className="flex items-center gap-3 mt-2.5">
                   <ProductThumb product={first} className="w-14 h-14" />
@@ -452,7 +469,7 @@ export function OrderDetails() {
         <div className="card p-4">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-extrabold text-primary tabular" dir="ltr">{order.id}</span>
-            <StageChip stage={order.stage} />
+            <StageChip stage={order.stage} by={order.cancelledBy} />
           </div>
           <h2 className="text-[15px] font-black text-ink-900 mt-2">{store.name}</h2>
           <p className="text-[11px] text-ink-400">{order.createdAt} · {order.payment}</p>
@@ -471,9 +488,16 @@ export function OrderDetails() {
             <p className="text-[12px] font-bold text-ink-900 flex items-center gap-1"><MapPin size={13} className="text-primary" /> عنوان استلام الطلب والتوصيل</p>
             {canCancel && <button onClick={() => navigate('addresses')} className="text-[11px] font-bold text-secondary">تغيير</button>}
           </div>
-          <p className="text-[12px] font-bold text-ink-800">{address?.title}</p>
-          <p className="text-[11px] text-ink-500">{address?.details}</p>
+          <p className="text-[12px] font-bold text-ink-800">{order.customer?.name || address?.name || address?.title}</p>
+          <p className="text-[11px] text-ink-500">{order.customer?.details || address?.details}</p>
+          {(order.customer?.phone || address?.phone) && <p className="text-[11px] font-bold text-primary tabular mt-0.5" dir="ltr">{order.customer?.phone || address?.phone}</p>}
+          {order.customer?.notes && <p className="text-[10px] text-ink-400 mt-0.5">ملاحظات: {order.customer.notes}</p>}
         </div>
+        {order.stage === 'cancelled' && order.cancelledBy === 'merchant' && (
+          <div className="rounded-card bg-danger-50 border border-danger-100 px-3 py-2.5 text-[11px] font-bold text-danger-700 flex items-start gap-2">
+            <XCircle size={14} className="shrink-0 mt-0.5" /> <span>ألغى المتجر هذا الطلب{order.cancelledFrom && order.cancelledFrom !== 'new' ? ' بعد قبوله' : ''}{order.cancelReason ? ` — السبب: ${order.cancelReason}` : ''}. لم يتم خصم أي مبالغ.</span>
+          </div>
+        )}
 
         <div className="card p-4">
           <p className="text-[12px] font-black text-ink-900 mb-2">قائمة الأصناف المشتراة ({order.items.length}):</p>
@@ -533,12 +557,17 @@ export function Tracking() {
   if (order.stage === 'delivered') {
     return (
       <StateScreen tone="success" icon={Check} code="CUS-035" title="تم استلام الطلب وتوصيله!" description="نتمنى أن تكون تجربتك مع جديد رائعة ومريحة." primary={{ label: 'العودة للرئيسية', onClick: () => navigate('home', {}, { resetTo: true }) }} secondary={{ label: 'تقييم التجربة', onClick: () => showToast('شكراً لتقييمك!', 'success') }}>
-        <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['المتجر:', store.name], ['المبلغ المدفوع:', `${fmt(order.total)} ${CURRENCY}`, 'text-success-700']]} />
+        <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['المتجر:', store.name], ['المبلغ المستحق:', `${fmt(order.total)} ${CURRENCY}`, 'text-success-700']]} />
       </StateScreen>
     )
   }
   if (['cancelled', 'rejected'].includes(order.stage)) {
-    return <StateScreen tone="error" icon={XCircle} title={order.stage === 'cancelled' ? 'تم إلغاء هذا الطلب' : 'اعتذر المتجر عن تنفيذ الطلب'} description="لم يتم خصم أي مبالغ. يمكنك إعادة الطلب من متجر آخر." primary={{ label: 'العودة للطلبات', onClick: () => navigate('orders', {}, { resetTo: true }) }} />
+    const byMerchant = order.stage === 'rejected' || order.cancelledBy === 'merchant'
+    return (
+      <StateScreen tone="error" icon={XCircle} title={order.stage === 'rejected' ? 'اعتذر المتجر عن تنفيذ الطلب' : byMerchant ? 'ألغى المتجر هذا الطلب' : 'تم إلغاء هذا الطلب'} description={byMerchant ? 'لم يتم خصم أي مبالغ، وإن كنت قد حوّلت مبلغاً فسيُعاد إليك. يمكنك إعادة الطلب من متجر آخر.' : 'لم يتم خصم أي مبالغ. يمكنك إعادة الطلب من متجر آخر.'} primary={{ label: 'العودة للطلبات', onClick: () => navigate('orders', {}, { resetTo: true }) }}>
+        <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['الحالة:', order.stage === 'rejected' ? 'مرفوض من المتجر' : byMerchant ? 'ملغي من المتجر' : 'ملغي بطلبك', 'text-danger-700'], ...(order.cancelReason ? [['سبب الإلغاء:', order.cancelReason]] : []), ...(byMerchant && order.cancelledFrom && order.cancelledFrom !== 'new' ? [['أُلغي بعد مرحلة:', order.cancelledFrom === 'preparing' ? 'قيد التجهيز' : 'في الطريق']] : [])]} />
+      </StateScreen>
+    )
   }
   return (
     <div className="flex-1 flex flex-col bg-ink-50">

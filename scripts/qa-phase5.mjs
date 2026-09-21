@@ -21,15 +21,19 @@ async function login(ctx) {
   const { phone, btn } = ctx
   await phone().locator('input').first().fill('773030064'); await btn(/إرسال رمز/, false).click(); await T(600)
   await btn(/الانتقال لإدخال/, false).click(); await T(400)
-  const inputs = phone().locator('input'); for (let i = 0; i < 4; i++) await inputs.nth(i).fill(String('1234'[i])); await T(600)
+  const inputs = phone().locator('input'); for (let i = 0; i < 4; i++) await inputs.nth(i).fill(String('1234'[i])); await T(1700) // RC-7: التحقق يمر بحالة تحميل (~0.9 ث)
 }
 
-// ── A) الزائر: تخطي → الرئيسية بدون دخول · تبويب المتاجر · المفضلة تطلب الدخول · الملف الشخصي للزائر ──
+// ── A) لا تصفح كزائر (RC-8): شاشة نوع الحساب بلا «تخطي/زائر» · الإضافة للسلة تتطلب الدخول · المتاجر · القانونية ──
 {
   const c = await fresh(); const { phone, nav, has, btn, page } = c
-  await btn('تخطي').click(); await T(400)                     // onboarding skip → accountType
-  await btn('تصفح كزائر بدون تسجيل').click(); await T(600)  // → home as guest
-  check('9) التخطي يفتح الرئيسية مباشرة كزائر (بدون إجبار على الدخول)', await has('الأقسام والتصنيفات'))
+  await btn('تخطي').click(); await T(400)                     // onboarding slides skip → accountType
+  check('9→RC-8) شاشة نوع الحساب بلا «تخطي» ولا «تصفح كزائر» وبنوعين فقط', (await btn('تخطي').count()) === 0 && (await btn(/تصفح كزائر/, false).count()) === 0 && (await btn(/كلاهما/, false).count()) === 0 && (await btn(/متسوق \(مشتري\)/, false).count()) === 1 && (await btn(/تاجر \(صاحب متجر\)/, false).count()) === 1)
+  await btn(/متسوق \(مشتري\)/, false).click(); await btn('متابعة').click(); await T(500)
+  check('9→RC-8) شاشة الدخول بلا رابط «تصفح كزائر»', (await btn(/تصفح كزائر/, false).count()) === 0)
+  await login(c)
+  await btn('المتابعة للرئيسية والتسوق').click(); await T(600)
+  check('9) الدخول يفتح الرئيسية', await has('الأقسام والتصنيفات'))
   check('1) تبويب «المتاجر» موجود في الشريط السفلي', (await nav().innerText()).includes('المتاجر'))
   check('3) بطاقات المنتجات في الرئيسية تعرض اسم المتجر', (await phone().getByLabel(/^متجر متجر التكنولوجيا/).count()) > 0)
   await nav().getByRole('button', { name: 'المتاجر' }).click(); await T(500)
@@ -38,15 +42,11 @@ async function login(ctx) {
   const t = await phone().innerText()
   check('10) صفحة المتجر: وصف + هاتف + وقت توصيل + صاحب المتجر + خريطة', ['عن المتجر', '777 200 300', '45-60 دقيقة', 'محمد سعيد', 'موقع المتجر على الخريطة', 'قائمة منتجات المتجر'].every((k) => t.includes(k)))
   await btn(/أضف سماعات/, false).click(); await T(300)
-  check('9) الزائر يستطيع الإضافة للسلة بدون دخول', (await btn(/أضف سماعات/, false).innerText()).trim() === '1')
+  check('9) العميل المسجّل يضيف للسلة', (await btn(/أضف سماعات/, false).innerText()).trim() === '1')
   await btn('العودة إلى الرئيسية').click(); await T(500)
-  await nav().getByRole('button', { name: 'المفضلة' }).click(); await T(600)
-  check('9) المفضلة كزائر → شاشة الدخول مع تنبيه البوابة', (await has('تسجيل الدخول بالبريد الإلكتروني')) && (await has('هذه الميزة تتطلب تسجيل الدخول')))
-  await btn('تصفح كزائر').click(); await T(500)
   await nav().getByRole('button', { name: 'حسابي' }).click(); await T(500)
-  check('9) «حسابي» كزائر → شاشة مناسبة بزرّي الدخول/إنشاء حساب', (await has('سجّل الدخول إلى جديد')) && (await btn('إنشاء حساب جديد').count()) === 1 && (await btn('تسجيل الدخول').count()) === 1)
   await btn('شروط الاستخدام').click(); await T(500)
-  check('4) شروط الاستخدام تفتح من حسابي (زائر)', await has('1. الحسابات'))
+  check('4) شروط الاستخدام تفتح من حسابي', await has('1. الحسابات'))
   await btn('عرض سياسة الخصوصية').click(); await T(500)
   check('4) التبديل إلى سياسة الخصوصية', await has('1. البيانات التي نجمعها'))
   await page.close()
@@ -55,7 +55,10 @@ async function login(ctx) {
 // ── B) بوابة الدفع: سلة من متجرين كزائر → إتمام الطلب يطلب الدخول → بعد OTP يعود للدفع → طلبان مستقلان ──
 {
   const c = await fresh(); const { phone, nav, has, btn, page } = c
-  await btn('تخطي').click(); await T(400); await btn('تصفح كزائر بدون تسجيل').click(); await T(600)
+  await btn('تخطي').click(); await T(400)
+  await btn(/متسوق \(مشتري\)/, false).click(); await btn('متابعة').click(); await T(500)
+  await login(c)
+  await btn('المتابعة للرئيسية والتسوق').click(); await T(600)
   await btn(/متجر التكنولوجيا الحديثة/, false).first().click(); await T(500)
   await btn(/أضف سماعات/, false).click(); await T(200); await btn('العودة إلى الرئيسية').click(); await T(400)
   await nav().getByRole('button', { name: 'المتاجر' }).click(); await T(400)
@@ -67,11 +70,7 @@ async function login(ctx) {
   check('2) السلة مفصولة: عنوانان لمتجرين + مجموع كل متجر', cartTxt.includes('الطلب 1') && cartTxt.includes('الطلب 2') && cartTxt.includes('مجموع طلب') && /34,500/.test(cartTxt) && /12,000/.test(cartTxt))
   check('2) الإجمالي الكلي 34,500 + 12,000 = 46,500', /46,500/.test(cartTxt))
   await btn(/إتمام الطلب والدفع/, false).click(); await T(600)
-  check('9) إتمام الطلب كزائر → بوابة الدخول', await has('تسجيل الدخول بالبريد الإلكتروني'))
-  await login(c)
-  check('9) بعد OTP: زر «المتابعة إلى حيث توقفت»', (await btn('المتابعة إلى حيث توقفت').count()) === 1)
-  await btn('المتابعة إلى حيث توقفت').click(); await T(600)
-  check('9) العودة تلقائياً إلى شاشة إتمام الطلب', await has('طريقة الدفع'))
+  check('9) إتمام الطلب (مسجّل) يفتح شاشة الدفع مباشرة', await has('طريقة الدفع'))
   // 6) تحويل بنكي + إيصال لكل متجر
   await btn(/تحويل بنكي/, false).click(); await T(400)
   const payTxt = await phone().innerText()

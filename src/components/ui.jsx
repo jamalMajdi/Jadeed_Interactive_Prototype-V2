@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation } from 'lucide-react'
+import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, ShoppingCart, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, WifiOff, RefreshCcw, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation, AlertTriangle, Info } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { CURRENCY, PAYMENT_STATUS, fmt, productById, storeById } from '../data/mock'
 
@@ -179,8 +179,9 @@ export function Chip({ children, tone = 'ink', className = '' }) {
   return <span className={`chip ${tones[tone]} ${className}`}>{children}</span>
 }
 
-export function StageChip({ stage }) {
-  // دورة حياة مبسّطة: جديد → قيد التجهيز → في الطريق → تم التوصيل (+ ملغي / مرفوض)
+export function StageChip({ stage, by }) {
+  // دورة حياة مبسّطة: جديد → قيد التجهيز → في الطريق → تم التوصيل (+ ملغي / مرفوض) — by='merchant' يميّز إلغاء المتجر
+  if (stage === 'cancelled' && by === 'merchant') return <Chip tone="danger">ألغاه المتجر</Chip>
   const map = {
     new: ['جديد', 'ink'],
     preparing: ['قيد التجهيز', 'warning'],
@@ -252,9 +253,11 @@ export function SectionHeader({ title, action, onAction, subtitle }) {
   )
 }
 
-export function Stepper({ value, onChange, min = 0, max = 99, size = 'md' }) {
+export function Stepper({ value, onChange, min = 0, max = 99, size = 'md', maxHint = false }) {
   const s = size === 'sm' ? 'h-7 w-7 text-[12px]' : 'h-9 w-9 text-[14px]'
+  const atMax = value >= max
   return (
+    <div className="inline-flex flex-col items-start gap-1">
     <div className="inline-flex items-center gap-1.5 bg-ink-100 rounded-xl p-1" dir="ltr">
       <button onClick={() => onChange(Math.max(min, value - 1))} className={`${s} rounded-lg bg-white shadow-card flex items-center justify-center text-ink-700 active:scale-95 disabled:opacity-40`} aria-label="إنقاص" disabled={value <= min}>
         <Minus size={14} strokeWidth={2.5} />
@@ -263,6 +266,8 @@ export function Stepper({ value, onChange, min = 0, max = 99, size = 'md' }) {
       <button onClick={() => onChange(Math.min(max, value + 1))} className={`${s} rounded-lg bg-primary text-white flex items-center justify-center active:scale-95 disabled:opacity-40`} aria-label="زيادة" disabled={value >= max}>
         <Plus size={14} strokeWidth={2.5} />
       </button>
+    </div>
+    {maxHint && atMax && <span className="text-[10px] font-bold text-warning-700 flex items-center gap-1"><AlertTriangle size={11} /> {typeof maxHint === 'string' ? maxHint : `أقصى كمية متاحة (${max})`}</span>}
     </div>
   )
 }
@@ -386,10 +391,41 @@ export function Toast() {
   if (!toast) return null
   const tones = { dark: 'bg-ink-900 text-white', success: 'bg-success text-white', danger: 'bg-danger text-white', primary: 'bg-primary text-white' }
   return (
-    <div key={toast.id} className={`absolute bottom-28 left-1/2 z-50 px-4 h-10 rounded-full shadow-modal text-[12px] font-bold flex items-center gap-2 whitespace-nowrap max-w-[340px] -translate-x-1/2 animate-toast-in ${tones[toast.tone]}`}>
-      {toast.tone === 'success' && <Check size={14} strokeWidth={3} />}
-      {toast.tone === 'danger' && <X size={14} strokeWidth={3} />}
-      {toast.message}
+    <div key={toast.id} className={`absolute bottom-[92px] left-1/2 z-50 px-4 py-2.5 min-h-[40px] rounded-2xl shadow-modal text-[12px] font-bold flex items-center gap-2 w-[calc(100%-32px)] max-w-[358px] -translate-x-1/2 animate-toast-in ${tones[toast.tone]}`} role="status">
+      {toast.tone === 'success' && <Check size={15} strokeWidth={3} className="shrink-0" />}
+      {toast.tone === 'danger' && <AlertTriangle size={15} strokeWidth={2.6} className="shrink-0" />}
+      {toast.tone === 'primary' && <Info size={15} strokeWidth={2.6} className="shrink-0" />}
+      <span className="leading-snug">{toast.message}</span>
+    </div>
+  )
+}
+
+// حالة انقطاع الإنترنت أثناء التصفح: شريط واضح أعلى الشاشة + زر إعادة المحاولة (يُقرأ من navigator.onLine أو يُحاكى)
+export function OfflineBanner() {
+  const { state, dispatch, showToast } = useApp()
+  const [checking, setChecking] = useState(false)
+  if (!state.offline) return null
+  const retry = () => {
+    setChecking(true)
+    setTimeout(() => {
+      setChecking(false)
+      const online = typeof navigator === 'undefined' ? true : navigator.onLine
+      if (online) { dispatch({ type: 'SET_OFFLINE', offline: false }); showToast('عاد الاتصال بالإنترنت', 'success') }
+      else showToast('لا يزال الاتصال مقطوعاً — تحقق من الشبكة', 'danger')
+    }, 900)
+  }
+  return (
+    <div className="absolute inset-x-0 top-11 z-[55] px-3 animate-slide-up" role="alert">
+      <div className="bg-ink-900 text-white rounded-2xl shadow-modal px-3.5 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><WifiOff size={18} /></div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-extrabold">لا يوجد اتصال بالإنترنت</p>
+          <p className="text-[10px] text-white/70">تصفّح ما تم تحميله مسبقاً — سيُستأنف التحديث تلقائياً عند عودة الاتصال</p>
+        </div>
+        <button onClick={retry} disabled={checking} className="h-8 px-3 rounded-full bg-white text-ink-900 text-[11px] font-extrabold flex items-center gap-1 shrink-0 disabled:opacity-60">
+          <RefreshCcw size={12} className={checking ? 'animate-spin' : ''} /> {checking ? 'جارٍ الفحص' : 'إعادة المحاولة'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -414,7 +450,8 @@ export function FavoriteButton({ productId, className = '' }) {
 }
 
 export function AddToCartButton({ product, size = 'xs', full = false }) {
-  const { dispatch, showToast, state } = useApp()
+  const { dispatch, showToast, state, requireAuth } = useApp()
+  const closed = storeById(product.storeId)?.open === false // المتجر مغلق: لا يستقبل طلبات جديدة
   const inCart = state.cart[product.id] || 0
   const soldOut = product.stock <= 0
   const maxed = inCart >= product.stock
@@ -422,15 +459,17 @@ export function AddToCartButton({ product, size = 'xs', full = false }) {
     <button
       onClick={(e) => {
         e.stopPropagation()
+        if (closed) return showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger')
         if (soldOut) return showToast('عذراً، نفدت الكمية من المخزون', 'danger')
+        if (!requireAuth(undefined, 'سجّل الدخول كعميل لإضافة المنتجات إلى السلة')) return // الإضافة للسلة تتطلب حساب عميل مسجّلاً
         if (maxed) return showToast(`الحد الأقصى المتاح ${product.stock} قطعة`, 'danger')
         dispatch({ type: 'ADD_TO_CART', productId: product.id })
         showToast('أُضيف إلى السلة', 'success')
       }}
-      className={`btn-primary btn-${size} ${full ? 'w-full' : ''} ${soldOut ? 'opacity-50' : ''}`}
+      className={`btn-primary btn-${size} ${full ? 'w-full' : ''} ${soldOut || closed ? 'opacity-50' : ''}`}
     >
-      <ShoppingBag size={size === 'xs' ? 12 : 16} strokeWidth={2.4} />
-      {soldOut ? 'نفدت الكمية' : inCart ? `في السلة (${inCart})` : 'أضف للسلة'}
+      <ShoppingCart size={size === 'xs' ? 12 : 16} strokeWidth={2.4} />
+      {closed ? 'المتجر مغلق' : soldOut ? 'نفدت الكمية' : inCart ? `في السلة (${inCart})` : 'أضف للسلة'}
     </button>
   )
 }
@@ -457,21 +496,25 @@ export function StoreLine({ storeId, onOpenStore, className = '' }) {
   )
 }
 
+// شارة حالة التوفر الموحّدة على بطاقات المنتجات: متوفر / كمية محدودة (≤5) / نفدت الكمية
+export function AvailabilityBadge({ stock, className = '' }) {
+  const [label, tone] = stock <= 0 ? ['نفدت الكمية', 'danger'] : stock <= 5 ? [`متبقٍ ${stock} فقط`, 'warning'] : ['متوفر', 'success']
+  return <Chip tone={tone} className={`!h-5 !text-[10px] !px-2 ${className}`}>{label}</Chip>
+}
+
 export function ProductCard({ product, onOpen, onOpenStore }) {
-  const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0
   return (
     <div onClick={() => onOpen(product)} className="card overflow-hidden cursor-pointer active:scale-[0.98] transition">
       <div className="relative">
         <ProductThumb product={product} className="w-full h-[112px]" rounded="rounded-none" />
         <FavoriteButton productId={product.id} className="absolute top-2 left-2" />
-        {product.badge && <Chip tone={product.stock <= 0 ? 'danger' : 'solidSecondary'} className="absolute top-2 right-2">{product.badge}</Chip>}
-        {discount > 0 && !product.badge && <Chip tone="solidSecondary" className="absolute top-2 right-2">خصم {discount}%</Chip>}
+        <AvailabilityBadge stock={product.stock} className="absolute top-2 right-2 shadow-card" />
       </div>
       <div className="p-2.5">
         <StoreLine storeId={product.storeId} onOpenStore={onOpenStore} />
         <h4 className="text-[12px] font-bold text-ink-900 leading-snug line-clamp-2 min-h-[34px]">{product.shortName}</h4>
         <div className="mt-1.5 flex items-center justify-between gap-1">
-          <Price value={product.price} size="sm" tone="primary" old={product.oldPrice} />
+          <Price value={product.price} size="sm" tone="primary" />
         </div>
         <div className="mt-2">
           <AddToCartButton product={product} full />

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, Briefcase, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff, LifeBuoy, Phone } from 'lucide-react'
+import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff, LifeBuoy, Phone } from 'lucide-react'
 import { useApp, OTP_LENGTH, OTP_MAX_ATTEMPTS, DEMO_OTP } from '../store/AppContext'
 import { Logo, StatusBar, HomeIndicator, StateScreen, KeyValue, TopBar } from '../components/ui'
 import { USER } from '../data/mock'
@@ -114,29 +114,25 @@ export function Onboarding() {
 const TYPES = [
   { key: 'customer', Icon: ShoppingBag, title: 'متسوق (مشتري)', desc: 'استكشف آلاف المتاجر والمنتجات واطلب بكل سهولة لباب منزلك.' },
   { key: 'merchant', Icon: Store, title: 'تاجر (صاحب متجر)', desc: 'اعرض منتجاتك، استقبل طلبات العملاء، وضاعف مبيعاتك وأرباحك.' },
-  { key: 'both', Icon: Briefcase, title: 'كلاهما (متسوق وتاجر)', desc: 'تمتع بتجربة كاملة للشراء والبيع في نفس الحساب بسلاسة.' },
 ]
+// نوع الحساب واحد فقط (عميل أو تاجر) — لا يمكن تسجيل المستخدم نفسه بالنوعين معاً
 
 export function AccountType() {
-  const { navigate, dispatch, state, switchTab } = useApp()
-  const [sel, setSel] = useState(state.auth.accountType)
+  const { navigate, dispatch, state } = useApp()
+  const [sel, setSel] = useState(TYPES.some((t) => t.key === state.auth.accountType) ? state.auth.accountType : 'customer')
   const go = () => {
     dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: sel })
     navigate('login', {}, { resetTo: true })
   }
-  // التخطي = تصفح كزائر مباشرة (الدخول يُطلب لاحقاً عند الحاجة فقط)
-  const skip = () => switchTab('home')
+  // لا يوجد تصفح كزائر: يجب تسجيل الدخول بنوع حساب واحد للمتابعة
   return (
     <div className="flex-1 flex flex-col bg-white">
       <StatusBar />
-      <div className="px-5 pt-1 flex justify-start">
-        <button onClick={skip} className="h-8 px-4 rounded-full bg-ink-100 text-[13px] font-bold">تخطي</button>
-      </div>
-      <div className="px-6 pt-6">
+      <div className="px-6 pt-8">
         <h1 className="text-[28px] font-extrabold text-ink-900">
           مرحباً بك في <span className="text-primary">جديد</span>
         </h1>
-        <p className="text-[12px] font-medium text-ink-500 mt-1">حدد نوع حسابك لنخصص لك أفضل تجربة تسوق وإدارة أعمال:</p>
+        <p className="text-[12px] font-medium text-ink-500 mt-1">حدد نوع حسابك لنخصص لك أفضل تجربة تسوق وإدارة أعمال (نوع واحد لكل حساب):</p>
         <div className="space-y-3 mt-6">
           {TYPES.map(({ key, Icon, title, desc }) => {
             const active = sel === key
@@ -156,9 +152,8 @@ export function AccountType() {
         </div>
       </div>
       <div className="flex-1" />
-      <div className="px-6 pb-4 space-y-2.5">
+      <div className="px-6 pb-4">
         <button onClick={go} className="w-full btn-primary btn-lg">متابعة</button>
-        <button onClick={skip} className="w-full btn-outline btn-lg">تصفح كزائر بدون تسجيل</button>
       </div>
       <HomeIndicator />
     </div>
@@ -172,7 +167,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const PHONE_RE = /^(\+?967)?7\d{8}$/
 
 export function Login() {
-  const { navigate, dispatch, switchTab, current, back, canGoBack, state } = useApp()
+  const { navigate, dispatch, current, back, canGoBack, state } = useApp()
   const preset = current.params?.preset // 'invalid' → معاينة حالة CUS-002 مباشرة
   const gated = !!current.params?.gated || !!state.auth.returnTo // وصل إلى هنا لأن ميزة تتطلب الدخول
   const [value, setValue] = useState(preset === 'invalid' ? 'user@invalid-mail' : '')
@@ -198,7 +193,6 @@ export function Login() {
         <button onClick={() => (canGoBack ? back() : navigate('accountType', {}, { resetTo: true }))} className="icon-btn" aria-label="رجوع">
           <ChevronLeft size={18} className="rotate-180" strokeWidth={2.4} />
         </button>
-        <button onClick={() => { dispatch({ type: 'CLEAR_RETURN_TO' }); switchTab('home') }} className="text-[13px] font-bold text-primary">تصفح كزائر</button>
       </div>
       <div className="flex flex-col items-center pt-6">
         <Logo size={64} />
@@ -276,15 +270,19 @@ export function OtpSent() {
 // ─────────────────────────────────────────────────────────────
 //  التحقق من رمز OTP (4 خانات) + خطأ (CUS-005) + حظر (CUS-006)
 // ─────────────────────────────────────────────────────────────
+const OTP_TTL = 60 // صلاحية الرمز بالثواني (عرض توضيحي) — إعادة الإرسال تُتاح بعد 30 ث، وعند الصفر يُعتبر الرمز منتهياً
 export function OtpVerify() {
   const { navigate, dispatch, state, back, current } = useApp()
-  const preset = current.params?.preset // 'wrong' → معاينة حالة CUS-005 مباشرة
+  const preset = current.params?.preset // 'wrong' → معاينة حالة CUS-005 · 'expired' → معاينة حالة انتهاء الرمز
   const [digits, setDigits] = useState(preset === 'wrong' ? ['9', '9', '9', '9'] : Array(OTP_LENGTH).fill(''))
   const [error, setError] = useState(preset === 'wrong')
-  const [timer, setTimer] = useState(46)
+  const [timer, setTimer] = useState(preset === 'expired' ? 0 : OTP_TTL)
+  const [verifying, setVerifying] = useState(false) // حالة التحميل أثناء التحقق
+  const [resent, setResent] = useState(false)
   const refs = useRef([])
   const attemptsLeft = OTP_MAX_ATTEMPTS - state.auth.otpAttempts
   const locked = !!state.auth.lockedUntil
+  const expired = timer <= 0 // انتهت صلاحية الرمز: يُمنع التحقق حتى إعادة الإرسال
 
   useEffect(() => {
     if (timer <= 0) return
@@ -292,11 +290,20 @@ export function OtpVerify() {
     return () => clearTimeout(t)
   }, [timer])
 
+  const resend = () => {
+    setTimer(OTP_TTL)
+    setDigits(Array(OTP_LENGTH).fill(''))
+    setError(false)
+    setResent(true)
+    setTimeout(() => refs.current[0]?.focus(), 50)
+  }
+
   useEffect(() => {
     if (locked) navigate('otpLocked', {}, { replace: true })
   }, [locked, navigate])
 
   const setAt = (idx, v) => {
+    if (verifying || expired) return
     const d = v.replace(/\D/g, '').slice(-1)
     const next = [...digits]
     next[idx] = d
@@ -318,17 +325,23 @@ export function OtpVerify() {
     }
   }
   const verify = (code) => {
-    if (code === DEMO_OTP) {
-      dispatch({ type: 'LOGIN' })
-      navigate('loginSuccess', {}, { resetTo: true })
-    } else {
-      setError(true)
-      dispatch({ type: 'OTP_FAIL' })
-      setTimeout(() => {
-        setDigits(Array(OTP_LENGTH).fill(''))
-        refs.current[0]?.focus()
-      }, 500)
-    }
+    if (verifying || expired || code.length !== OTP_LENGTH) return
+    setVerifying(true)
+    // محاكاة زمن التحقق من الخادم (حالة تحميل واضحة) ثم النتيجة
+    setTimeout(() => {
+      setVerifying(false)
+      if (code === DEMO_OTP) {
+        dispatch({ type: 'LOGIN' })
+        navigate('loginSuccess', {}, { resetTo: true })
+      } else {
+        setError(true)
+        dispatch({ type: 'OTP_FAIL' })
+        setTimeout(() => {
+          setDigits(Array(OTP_LENGTH).fill(''))
+          refs.current[0]?.focus()
+        }, 500)
+      }
+    }, 900)
   }
   const masked = '+967 773 *** 064'
   return (
@@ -355,34 +368,51 @@ export function OtpVerify() {
               inputMode="numeric"
               maxLength={1}
               autoFocus={idx === 0}
-              className={`w-14 h-16 rounded-2xl text-center text-[24px] font-extrabold tabular outline-none border-2 transition ${
-                error ? 'border-danger bg-danger-50 text-danger animate-bounce-soft' : d ? 'border-primary bg-primary-50 text-ink-900' : 'border-transparent bg-ink-100 text-ink-900 focus:border-primary focus:bg-white'
+              disabled={verifying || expired}
+              className={`w-14 h-16 rounded-2xl text-center text-[24px] font-extrabold tabular outline-none border-2 transition disabled:opacity-60 ${
+                error ? 'border-danger bg-danger-50 text-danger animate-bounce-soft' : expired ? 'border-transparent bg-ink-100 text-ink-300' : d ? 'border-primary bg-primary-50 text-ink-900' : 'border-transparent bg-ink-100 text-ink-900 focus:border-primary focus:bg-white'
               }`}
             />
           ))}
         </div>
 
-        {error ? (
+        {verifying ? (
+          <div className="mt-5 bg-primary-50 border border-primary-100 rounded-field px-4 py-3 flex items-center justify-center gap-2 text-[12px] font-bold text-primary" role="status">
+            <Loader2 size={16} className="animate-spin" /> جارٍ التحقق من الرمز...
+          </div>
+        ) : expired ? (
+          <div className="mt-5 bg-warning-50 border border-warning-100 rounded-field px-4 py-3 text-center">
+            <p className="text-[12px] font-bold text-warning-700 flex items-center justify-center gap-2"><Clock size={16} /> انتهت صلاحية رمز التحقق</p>
+            <p className="text-[11px] font-medium text-ink-500 mt-1">اطلب رمزاً جديداً لإكمال تسجيل الدخول</p>
+            <button onClick={resend} className="btn-primary btn-sm mt-3 mx-auto">إعادة إرسال الرمز</button>
+          </div>
+        ) : error ? (
           <div className="mt-5 bg-danger-50 border border-danger-100 rounded-field px-4 py-3 flex items-center gap-2 text-[12px] font-bold text-danger-700">
             <AlertCircle size={16} /> رمز التحقق المدخل غير صحيح — المحاولات المتبقية: {attemptsLeft} من {OTP_MAX_ATTEMPTS}
           </div>
         ) : (
           <div className="text-center mt-8">
-            {timer > 0 ? (
-              <p className="text-[12px] font-semibold text-primary">
-                إعادة إرسال الرمز خلال <span className="font-bold tabular">00:{String(timer).padStart(2, '0')}</span>
-              </p>
-            ) : (
-              <button onClick={() => setTimer(46)} className="text-[12px] font-bold text-primary underline underline-offset-4">إعادة إرسال الرمز</button>
-            )}
+            {resent && <p className="text-[11px] font-bold text-success-700 mb-1 flex items-center justify-center gap-1"><Check size={13} strokeWidth={3} /> تم إرسال رمز جديد</p>}
+            <p className="text-[12px] font-semibold text-primary">
+              صلاحية الرمز تنتهي خلال <span className="font-bold tabular">00:{String(timer).padStart(2, '0')}</span>
+            </p>
             <p className="text-[11px] font-medium text-ink-400 mt-1">المحاولات المتبقية: {attemptsLeft} من {OTP_MAX_ATTEMPTS}</p>
+          </div>
+        )}
+        {!expired && !verifying && (
+          <div className="text-center mt-3">
+            {timer > OTP_TTL - 30 ? (
+              <p className="text-[11px] font-medium text-ink-400">لم يصلك الرمز؟ يمكنك إعادة الإرسال خلال <span className="font-bold tabular">{timer - (OTP_TTL - 30)}</span> ث</p>
+            ) : (
+              <button onClick={resend} className="text-[12px] font-bold text-primary underline underline-offset-4">إعادة إرسال الرمز</button>
+            )}
           </div>
         )}
       </div>
       <div className="flex-1" />
       <div className="px-6 pb-4">
-        <button onClick={() => verify(digits.join(''))} disabled={!digits.every(Boolean)} className="w-full btn-primary btn-lg">
-          تأكيد ومتابعة
+        <button onClick={() => verify(digits.join(''))} disabled={!digits.every(Boolean) || verifying || expired} className="w-full btn-primary btn-lg">
+          {verifying ? <><Loader2 size={18} className="animate-spin" /> جارٍ التحقق...</> : expired ? 'انتهت صلاحية الرمز' : 'تأكيد ومتابعة'}
         </button>
       </div>
       <HomeIndicator />
@@ -425,15 +455,17 @@ export function OtpLocked() {
 }
 
 export function LoginSuccess() {
-  const { switchTab, navigate, state, dispatch, isMerchant } = useApp()
+  const { switchTab, navigate, state, dispatch, isMerchant, isBanned } = useApp()
   const returnTo = state.auth.returnTo
+  const bannedMerchant = isBanned && state.auth.accountType === 'merchant'
   const proceed = () => {
     dispatch({ type: 'CLEAR_RETURN_TO' })
+    if (bannedMerchant) return navigate('merchantBanned', {}, { resetTo: true }) // التاجر المحظور يرى شاشة الحظر لا اللوحة
     if (returnTo?.name) return navigate(returnTo.name, returnTo.params || {}, { resetTo: true })
     if (isMerchant && state.auth.accountType === 'merchant') return switchTab('m-dashboard')
     switchTab('home')
   }
-  const label = returnTo?.name ? 'المتابعة إلى حيث توقفت' : isMerchant && state.auth.accountType === 'merchant' ? 'الانتقال إلى لوحة تحكم المتجر' : 'المتابعة للرئيسية والتسوق'
+  const label = bannedMerchant ? 'عرض حالة المتجر' : returnTo?.name ? 'المتابعة إلى حيث توقفت' : isMerchant && state.auth.accountType === 'merchant' ? 'الانتقال إلى لوحة تحكم المتجر' : 'المتابعة للرئيسية والتسوق'
   return (
     <StateScreen
       tone="info"
@@ -443,7 +475,7 @@ export function LoginSuccess() {
       description="تم التحقق من هويتك بنجاح ومصادقة الدخول إلى حسابك."
       primary={{ label, onClick: proceed }}
     >
-      <KeyValue rows={[['طريقة التحقق:', `رمز البريد (OTP)`, 'text-primary'], ['نوع الحساب:', isMerchant ? 'تاجر معتمد' : 'عميل', isMerchant ? 'text-secondary' : 'text-ink-900'], ['حالة الجلسة:', 'نشطة وآمنة', 'text-success-700']]} />
+      <KeyValue rows={[['طريقة التحقق:', `رمز البريد (OTP)`, 'text-primary'], ['نوع الحساب:', bannedMerchant ? 'تاجر — متجر محظور' : isMerchant ? 'تاجر معتمد' : 'عميل', bannedMerchant ? 'text-danger' : isMerchant ? 'text-secondary' : 'text-ink-900'], ['حالة الجلسة:', 'نشطة وآمنة', 'text-success-700']]} />
     </StateScreen>
   )
 }

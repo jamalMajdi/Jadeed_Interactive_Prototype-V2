@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Home, Search, Heart, ReceiptText, User, Store, Package, ClipboardList, BarChart3, Check, ShoppingBag, Mail, AlertCircle, Truck } from 'lucide-react'
+import { Home, Search, Heart, ReceiptText, User, Store, Package, ClipboardList, BarChart3, Check, ShoppingBag, ShoppingCart, Mail, AlertCircle, Truck } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { StatusBar, HomeIndicator, TopBar, Logo, Chip, StageChip, Stepper, Price, ProductCard, StoreAvatar, Rating, VerifiedBadge, KeyValue, Modal } from '../components/ui'
 import { PRODUCTS, STORES } from '../data/mock'
@@ -147,7 +147,7 @@ export function ComponentsShowcase() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <button className="btn-primary btn-sm">صغير · sm</button>
-                <button className="btn-primary btn-xs"><ShoppingBag size={12} /> أضف للسلة · xs</button>
+                <button className="btn-primary btn-xs"><ShoppingCart size={12} /> أضف للسلة · xs</button>
                 <button className="btn-primary btn-md" disabled>معطّل</button>
               </div>
             </Section>
@@ -157,7 +157,7 @@ export function ComponentsShowcase() {
                 <Chip tone="primary">أساسي</Chip>
                 <Chip tone="secondary">ثانوي</Chip>
                 <Chip tone="solidPrimary">صلب أساسي</Chip>
-                <Chip tone="solidSecondary">خصم 18%</Chip>
+                <Chip tone="solidSecondary">صلب ثانوي</Chip>
               </div>
               <div className="flex flex-wrap gap-2">
                 {['new', 'preparing', 'out', 'delivered', 'cancelled', 'rejected'].map((s) => <StageChip key={s} stage={s} />)}
@@ -246,7 +246,7 @@ export function ComponentsShowcase() {
               ))}
             </Section>
             <Section title="بطاقة مفتاح/قيمة (KeyValue) — للفواتير والملخصات">
-              <KeyValue rows={[['رقم الطلب:', 'JD-984210', 'text-primary'], ['إجمالي الفاتورة:', '42,160 ر.ي'], ['طريقة الدفع:', 'الدفع نقداً عند الاستلام', 'text-success-700']]} />
+              <KeyValue rows={[['رقم الطلب:', 'JD-984210', 'text-primary'], ['إجمالي الفاتورة:', '52,700 ر.ي'], ['طريقة الدفع:', 'الدفع نقداً عند الاستلام', 'text-success-700']]} />
             </Section>
             <Section title="بطاقة حالة (نجاح / خطأ / تحذير / فارغ)">
               <div className="grid grid-cols-4 gap-2">

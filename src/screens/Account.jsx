@@ -1,19 +1,19 @@
 import React from 'react'
-import { ChevronLeft, MapPin, ReceiptText, Heart, Bell, Shield, HelpCircle, Store, LogOut, Truck, Tag, Wallet, ShieldCheck, LayoutDashboard, LogIn, UserPlus, FileText, Lock, Landmark, Phone, Package, BadgeCheck, UserRound } from 'lucide-react'
+import { ChevronLeft, MapPin, ReceiptText, Heart, Bell, Shield, HelpCircle, Store, LogOut, Truck, Tag, Wallet, ShieldCheck, LayoutDashboard, LogIn, UserPlus, FileText, Lock, Landmark, Phone, Package, BadgeCheck, UserRound, ShoppingBag, Clock, Ban } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { StatusBar, HomeIndicator, BottomNav, TopBar } from '../components/ui'
-import { NOTIFICATIONS, USER, MERCHANT, storeById, fmt, CURRENCY } from '../data/mock'
+import { NOTIFICATIONS, USER, fmt, CURRENCY } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  الملف الشخصي وإدارة الحساب
 // ─────────────────────────────────────────────────────────────
 export function Account() {
-  const { navigate, dispatch, state, switchTab, current, isMerchant } = useApp()
+  const { navigate, dispatch, state, switchTab, current, isMerchant, merchantStore } = useApp()
   const merchantMode = !!current.params?.merchant
   const guest = state.auth.status !== 'authenticated'
   const merchant = state.merchantStatus
   const accountType = state.auth.accountType
-  const store = isMerchant ? storeById(MERCHANT.storeId) : null
+  const store = isMerchant ? merchantStore : null
 
   // ── الزائر: شاشة مناسبة بدل قائمة الحساب — دخول / إنشاء حساب مع بقاء التصفح متاحاً ──
   if (guest) {
@@ -22,7 +22,7 @@ export function Account() {
         <StatusBar />
         <div className="bg-white border-b border-ink-100 px-4 pb-3">
           <h1 className="text-[18px] font-extrabold text-ink-900">حسابي</h1>
-          <p className="text-[11px] text-ink-500 font-medium">أنت تتصفح كزائر — الدخول مطلوب فقط للمفضلة والطلبات وإتمام الشراء</p>
+          <p className="text-[11px] text-ink-500 font-medium">جلستك غير مسجّلة — سجّل الدخول للتسوق وإضافة المنتجات إلى السلة</p>
         </div>
         <div className="flex-1 overflow-y-auto scroll-thin px-5 py-6 pb-28">
           <div className="flex flex-col items-center text-center">
@@ -58,10 +58,9 @@ export function Account() {
   }
 
   const items = [
-    { Icon: MapPin, label: 'عناويني المحفوظة', to: 'addresses' },
+    { Icon: MapPin, label: 'موقع التوصيل', to: 'addresses' },
     { Icon: ReceiptText, label: 'سجل الطلبات', tab: 'orders' },
     { Icon: Heart, label: 'قائمة المفضلة', tab: 'favorites' },
-    { Icon: Bell, label: 'مركز التنبيهات', to: 'notifications' },
     { Icon: HelpCircle, label: 'المساعدة والدعم الفني', to: 'support' },
   ]
   const legal = [
@@ -81,7 +80,7 @@ export function Account() {
           <div className="flex-1 min-w-0">
             <h1 className="text-[20px] font-extrabold truncate">{USER.name}</h1>
             <p className="text-[12px] text-white/85">{USER.area}، {USER.city} · <span dir="ltr" className="tabular">{USER.phone}</span></p>
-            <p className="text-[11px] font-bold text-warning flex items-center gap-1 mt-0.5"><ShieldCheck size={12} /> {isMerchant ? 'حساب تاجر معتمد' : 'حساب عميل'} · {USER.city}، اليمن</p>
+            <p className="text-[11px] font-bold text-warning flex items-center gap-1 mt-0.5"><ShieldCheck size={12} /> {isMerchant ? 'حساب تاجر معتمد' : merchant === 'banned' ? 'حساب تاجر — المتجر محظور' : 'حساب عميل'} · {USER.city}، اليمن</p>
           </div>
           <span className="shrink-0 h-7 px-2.5 rounded-full bg-white/15 text-[10px] font-extrabold flex items-center gap-1">{isMerchant ? <><Store size={12} /> تاجر</> : <><UserRound size={12} /> عميل</>}</span>
         </div>
@@ -91,14 +90,26 @@ export function Account() {
         {isMerchant && store ? (
           <>
             {/* ── بيانات المتجر للتاجر المعتمد: الاسم، صاحب المتجر، الحساب المرتبط، التواصل، التوصيل، الدفع ── */}
-            <button onClick={() => switchTab('m-dashboard')} className="w-full rounded-card bg-primary text-white p-4 flex items-center gap-3 text-right shadow-brand active:scale-[0.99] transition">
-              <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><LayoutDashboard size={22} /></div>
-              <div className="flex-1">
-                <p className="text-[14px] font-bold">لوحة تحكم المتجر</p>
-                <p className="text-[11px] text-white/80">إدارة المنتجات والطلبات والمبيعات</p>
-              </div>
-              <ChevronLeft size={18} />
-            </button>
+            {/* التبديل بين واجهة التاجر وواجهة التسوق دون تسجيل خروج */}
+            {merchantMode ? (
+              <button onClick={() => switchTab('home')} className="w-full rounded-card bg-secondary text-white p-4 flex items-center gap-3 text-right shadow-accent active:scale-[0.99] transition">
+                <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><ShoppingBag size={22} /></div>
+                <div className="flex-1">
+                  <p className="text-[14px] font-bold">الانتقال إلى واجهة التسوق</p>
+                  <p className="text-[11px] text-white/85">تسوّق كعميل بنفس الحساب — تعود للوحة التاجر متى شئت</p>
+                </div>
+                <ChevronLeft size={18} />
+              </button>
+            ) : (
+              <button onClick={() => switchTab('m-dashboard')} className="w-full rounded-card bg-primary text-white p-4 flex items-center gap-3 text-right shadow-brand active:scale-[0.99] transition">
+                <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center"><LayoutDashboard size={22} /></div>
+                <div className="flex-1">
+                  <p className="text-[14px] font-bold">لوحة تحكم المتجر</p>
+                  <p className="text-[11px] text-white/80">إدارة المنتجات والطلبات والمبيعات</p>
+                </div>
+                <ChevronLeft size={18} />
+              </button>
+            )}
             <div className="card p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[13px] font-extrabold text-ink-900 flex items-center gap-1.5"><Store size={14} className="text-primary" /> بيانات متجري</p>
@@ -123,11 +134,20 @@ export function Account() {
               </div>
             </div>
           </>
-        ) : (
-          <button onClick={() => navigate(merchant === 'pending' ? 'merchantPending' : merchant === 'rejected' ? 'merchantRejected' : 'merchantIntro')} className="w-full rounded-card bg-white border-2 border-secondary p-4 flex items-center gap-3 text-right active:scale-[0.99] transition">
-            <div className="w-11 h-11 rounded-xl bg-secondary-50 text-secondary flex items-center justify-center"><Store size={22} /></div>
+        ) : merchant === 'banned' ? (
+          <button onClick={() => navigate('merchantBanned')} className="w-full rounded-card bg-danger-50 border-2 border-danger-100 p-4 flex items-center gap-3 text-right active:scale-[0.99] transition">
+            <div className="w-11 h-11 rounded-xl bg-danger text-white flex items-center justify-center"><Ban size={22} /></div>
             <div className="flex-1">
-              <p className="text-[14px] font-bold text-ink-900">{merchant === 'pending' ? 'طلب متجرك قيد المراجعة' : merchant === 'rejected' ? 'تم رفض طلب المتجر' : 'انضم كتاجر وافتح متجرك'}</p>
+              <p className="text-[14px] font-bold text-danger">متجرك محظور من قِبل الإدارة</p>
+              <p className="text-[11px] text-ink-600">اضغط لعرض سبب الحظر وتقديم اعتراض</p>
+            </div>
+            <ChevronLeft size={18} className="text-danger" />
+          </button>
+        ) : (
+          <button onClick={() => navigate(merchant === 'pending' ? 'merchantPending' : merchant === 'rejected' ? 'merchantRejected' : 'merchantIntro')} className={`w-full rounded-card bg-white border-2 p-4 flex items-center gap-3 text-right active:scale-[0.99] transition ${merchant === 'pending' ? 'border-warning' : merchant === 'rejected' ? 'border-danger' : 'border-secondary'}`}>
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${merchant === 'pending' ? 'bg-warning-50 text-warning' : merchant === 'rejected' ? 'bg-danger-50 text-danger' : 'bg-secondary-50 text-secondary'}`}>{merchant === 'pending' ? <Clock size={22} /> : <Store size={22} />}</div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold text-ink-900 flex items-center gap-2">{merchant === 'pending' ? 'طلب متجرك قيد المراجعة' : merchant === 'rejected' ? 'تم رفض طلب المتجر' : 'انضم كتاجر وافتح متجرك'}{merchant === 'pending' && <span className="chip bg-warning-50 text-warning-700 !h-5 !text-[10px]">قيد المراجعة</span>}{merchant === 'rejected' && <span className="chip bg-danger-50 text-danger-700 !h-5 !text-[10px]">مرفوض</span>}</p>
               <p className="text-[11px] text-ink-500">{merchant === 'pending' ? 'سيُفعَّل حساب التاجر فور الاعتماد' : merchant === 'rejected' ? 'اضغط لعرض السبب وإعادة التقديم' : 'حسابك الحالي حساب عميل — يتحول إلى حساب تاجر بعد اعتماد طلب المتجر'}</p>
             </div>
             <ChevronLeft size={18} className="text-ink-400" />

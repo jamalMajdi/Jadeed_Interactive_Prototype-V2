@@ -22,6 +22,7 @@ export const STORES = [
   {
     id: 'st-tech',
     name: 'متجر التكنولوجيا الحديثة',
+    category: 'electronics',
     area: 'شارع جمال',
     city: CITY,
     rating: 4.9,
@@ -44,11 +45,12 @@ export const STORES = [
   {
     id: 'st-perfume',
     name: 'عطور الجزيرة الملكية',
+    category: 'beauty',
     area: 'حوض الأشراف',
     city: CITY,
     rating: 4.8,
     reviews: 187,
-    tag: 'خصم 15%',
+    tag: 'عطور أصلية',
     verified: true,
     open: true,
     prepTime: '20-30 دقيقة',
@@ -66,6 +68,7 @@ export const STORES = [
   {
     id: 'st-barista',
     name: 'عالم الباريستا المنزلي',
+    category: 'food',
     area: 'المسبح',
     city: CITY,
     rating: 4.7,
@@ -88,11 +91,12 @@ export const STORES = [
   {
     id: 'st-gaming',
     name: 'جيمرز هاب للترفيه',
+    category: 'electronics',
     area: 'التحرير',
     city: CITY,
     rating: 4.6,
     reviews: 74,
-    tag: 'عروض أسبوعية',
+    tag: 'ألعاب وإكسسوارات',
     verified: false,
     open: false,
     prepTime: '40-60 دقيقة',
@@ -110,6 +114,7 @@ export const STORES = [
   {
     id: 'st-decor',
     name: 'روائع الديكور والمنزل',
+    category: 'home',
     area: 'بير باشا',
     city: CITY,
     rating: 4.5,
@@ -139,7 +144,7 @@ export const PRODUCTS = [
     shortName: 'سماعات رأس لاسلكية احترافية',
     category: 'electronics',
     price: 34500,
-    oldPrice: 42000,
+    oldPrice: null,
     stock: 24,
     badge: 'الأكثر مبيعاً',
     image: '/img/headphones.jpg',
@@ -161,9 +166,9 @@ export const PRODUCTS = [
     shortName: 'ساعة ذكية رياضية من التيتانيوم',
     category: 'electronics',
     price: 18200,
-    oldPrice: 26000,
+    oldPrice: null,
     stock: 18,
-    badge: 'خصم هائل',
+    badge: null,
     image: '/img/watch.jpg',
     bg: '#E5E7EB',
     description: 'ساعة ذكية بهيكل تيتانيوم خفيف، تتبع للنبض والأكسجين والنوم، ومقاومة للماء حتى 50 مترًا.',
@@ -202,7 +207,7 @@ export const PRODUCTS = [
     shortName: 'حذاء الجري الرياضي خفيف الوزن',
     category: 'fashion',
     price: 12900,
-    oldPrice: 15500,
+    oldPrice: null,
     stock: 15,
     badge: null,
     image: '/img/shoes.jpg',
@@ -242,7 +247,7 @@ export const PRODUCTS = [
     shortName: 'ماكينة تحضير الإسبريسو',
     category: 'home',
     price: 52000,
-    oldPrice: 58000,
+    oldPrice: null,
     stock: 12,
     badge: null,
     image: '/img/espresso.jpg',
@@ -296,16 +301,12 @@ export const TRENDING_SEARCHES = ['بن يمني معطر', 'غسل دوعني',
 
 export const AREAS = ['الكل', 'شارع جمال', 'المسبح', 'التحرير', 'بير باشا', 'حوض الأشراف', 'الحوبان'] // الحوبان بلا متاجر بعد → حالة CUS-018
 
-export const COUPONS = {
-  JADEED20: { type: 'percent', value: 20, label: 'خصم 20% لعملاء جديد' },
-  WELCOME10: { type: 'percent', value: 10, label: 'خصم ترحيبي 10%' },
-  FLAT2000: { type: 'flat', value: 2000, label: 'خصم 2,000 ر.ي' },
-}
+// نظام الخصومات والكوبونات موقوف مؤقتاً (قرار المنتج) — يبقى التصدير فارغاً حتى لا تنكسر الحسابات
+export const COUPONS = {}
 
+// موقع توصيل واحد لكل حساب — يُحدَّث (يدوياً أو من الخريطة) ولا تُنشأ قائمة عناوين متعددة
 export const ADDRESSES = [
-  { id: 'a1', title: 'المنزل (الرئيسي)', details: 'المسبح، قرب جولة المسبح، تعز', phone: '773030064' },
-  { id: 'a2', title: 'مقر العمل', details: 'شارع جمال، أمام بنك التضامن، تعز', phone: '773030064' },
-  { id: 'a3', title: 'الفرع الثاني', details: 'الحوبان، مجمع النور، تعز', phone: '773030064' },
+  { id: 'a1', title: 'موقعي', details: 'المسبح، قرب جولة المسبح، تعز', phone: '773030064', name: 'محمد سعيد' },
 ]
 
 export const USER = {
@@ -377,19 +378,21 @@ export const SEED_ORDERS = [
     stage: 'delivered',
     payment: 'الدفع نقداً عند الاستلام',
     paymentStatus: 'cod',
-    addressId: 'a2',
+    addressId: 'a1',
     coupon: null,
   },
 ]
 
 export const NOTIFICATIONS = [
   { id: 'n1', title: 'طلبك في الطريق إليك!', body: 'الكابتن فهد استلم طلبك رقم JD-984210 وهو في طريقه إلى موقعك.', time: 'منذ 25 دقيقة', icon: 'truck', tone: 'primary' },
-  { id: 'n2', title: 'قسيمة خصم 20% بانتظارك', body: 'استخدم الكود JADEED20 واحصل على خصم فوري على طلبك القادم.', time: 'منذ 3 ساعات', icon: 'tag', tone: 'secondary' },
+  { id: 'n2', title: 'تم قبول طلبك', body: 'قبل المتجر طلبك رقم JD-984210 وبدأ تجهيزه الآن.', time: 'منذ 3 ساعات', icon: 'tag', tone: 'secondary' },
   { id: 'n3', title: 'تم شحن محفظتك الرقمية', body: 'تمت إضافة 50 ريال مكافأة ترحيبية إلى رصيد حسابك.', time: 'أمس', icon: 'wallet', tone: 'warning' },
 ]
 
 export const MERCHANT = {
-  storeId: 'st-tech',
+  storeId: 'st-tech', // المتجر الوحيد المرتبط بحساب التاجر
+  banReason: 'تلقّت الإدارة 3 بلاغات موثّقة عن منتجات غير مطابقة للوصف خلال آخر 30 يوماً.', // سبب الحظر التجريبي (محاكاة)
+  banDate: '18 سبتمبر 2026',
   merchantId: 'MER-7729',
   requestId: 'STR-REQ-101',
   todaySales: 345000,
@@ -420,7 +423,7 @@ export const storeById = (id) => STORES.find((s) => s.id === id)
 export const fmt = (n) => new Intl.NumberFormat('en-US').format(Math.round(n))
 
 // طلب نموذجي (يُستخدم في معرض الشاشات لعرض كل مرحلة بشكل مستقل) — الأرقام محسوبة رياضياً:
-// 34,500 + 18,200 = 52,700 − خصم JADEED20 (20% = 10,540) + توصيل مجاني = 42,160
+// 34,500 + 18,200 = 52,700 + توصيل مجاني = 52,700 (بدون خصومات — النظام موقوف مؤقتاً)
 export const makeSampleOrder = (stage = 'new', overrides = {}) => ({
   id: 'JD-984210',
   storeId: 'st-tech',
@@ -430,13 +433,13 @@ export const makeSampleOrder = (stage = 'new', overrides = {}) => ({
     { productId: 'p-watch', qty: 1, price: 18200 },
   ],
   subtotal: 52700,
-  discount: 10540,
+  discount: 0,
   deliveryFee: 0,
-  total: 42160,
+  total: 52700,
   stage,
   payment: 'الدفع نقداً عند الاستلام',
   paymentStatus: 'cod',
   addressId: 'a1',
-  coupon: 'JADEED20',
+  coupon: null,
   ...overrides,
 })

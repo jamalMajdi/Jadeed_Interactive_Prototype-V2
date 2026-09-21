@@ -3,6 +3,7 @@ import {
   ADDRESSES,
   COUPONS,
   DELIVERY_FEE_INSIDE_CITY,
+  MERCHANT,
   ORDER_STAGES,
   PRODUCTS,
   SEED_ORDERS,
@@ -36,11 +37,13 @@ const initialState = {
   addresses: ADDRESSES,
   orders: SEED_ORDERS,
   orderCounter: 984210,
-  // التاجر
-  merchantProducts: PRODUCTS.filter((p) => p.storeId === 'st-tech').map((p) => p.id),
-  // none | pending | approved | rejected — يصبح approved فقط عند حساب تاجر (نوع الحساب تاجر/كلاهما) أو بعد اعتماد طلب المتجر
+  // التاجر — متجر واحد فقط (MERCHANT.storeId)
+  merchantProducts: PRODUCTS.filter((p) => p.storeId === MERCHANT.storeId).map((p) => p.id),
+  // none | pending | approved | rejected | banned — يصبح approved فقط عند حساب تاجر أو بعد اعتماد طلب المتجر (نوع الحساب واحد: عميل أو تاجر)
   merchantStatus: 'none',
+  storeOpen: true, // حالة المتجر (مفتوح/مغلق) يتحكم بها التاجر من اللوحة — تؤثر على واجهة العميل واستقبال الطلبات
   seenNotifications: false,
+  offline: false, // حالة انقطاع الإنترنت (تُقرأ من المتصفح أو تُحاكى من لوحة العرض)
   catalogVersion: 0, // يزداد عند تعديل كتالوج المنتجات لإعادة حساب السلة
 }
 
@@ -64,7 +67,8 @@ function reducer(state, action) {
 
     // ── المصادقة ──────────────────────────────────────────────
     case 'SET_ACCOUNT_TYPE':
-      return { ...state, auth: { ...state.auth, accountType: action.accountType } }
+      // نوع الحساب واحد فقط: عميل أو تاجر
+      return ['customer', 'merchant'].includes(action.accountType) ? { ...state, auth: { ...state.auth, accountType: action.accountType } } : state
     case 'SET_EMAIL':
       return { ...state, auth: { ...state.auth, email: action.email, otpAttempts: 0 } }
     case 'OTP_FAIL': {
@@ -75,11 +79,12 @@ function reducer(state, action) {
     case 'OTP_RESET':
       return { ...state, auth: { ...state.auth, otpAttempts: 0, lockedUntil: null } }
     case 'LOGIN': {
-      const isMerchantAccount = ['merchant', 'both'].includes(state.auth.accountType)
+      const isMerchantAccount = state.auth.accountType === 'merchant'
       return {
         ...state,
         auth: { ...state.auth, status: 'authenticated', otpAttempts: 0, lockedUntil: null },
-        merchantStatus: isMerchantAccount ? 'approved' : state.merchantStatus,
+        // الحظر لا يُرفع بإعادة تسجيل الدخول (يبقى حتى تقرر الإدارة)
+        merchantStatus: isMerchantAccount ? (state.merchantStatus === 'banned' ? 'banned' : 'approved') : state.merchantStatus,
       }
     }
     case 'AUTH_GATE': // حفظ الوجهة للعودة إليها بعد تسجيل الدخول
@@ -87,11 +92,12 @@ function reducer(state, action) {
     case 'CLEAR_RETURN_TO':
       return { ...state, auth: { ...state.auth, returnTo: null } }
     case 'LOGOUT':
-      // الخروج لا يجبر على الدخول مجدداً: يعود المستخدم للتصفح كزائر
-      return { ...initialState, stack: [{ name: 'home' }], orders: state.orders }
+      // لا يوجد تصفح كزائر: بعد الخروج يعود المستخدم إلى اختيار نوع الحساب وتسجيل الدخول
+      return { ...initialState, stack: [{ name: 'accountType' }], orders: state.orders }
 
     // ── السلة ─────────────────────────────────────────────────
     case 'ADD_TO_CART': {
+      if (state.auth.status !== 'authenticated') return state // الإضافة للسلة للمسجّلين فقط
       const p = productById(action.productId)
       if (!p || p.stock <= 0) return state
       const current = state.cart[action.productId] || 0
@@ -128,6 +134,12 @@ function reducer(state, action) {
     // ── العناوين ──────────────────────────────────────────────
     case 'SET_ADDRESS':
       return { ...state, addressId: action.addressId }
+    // موقع واحد لكل حساب: التحديث يستبدل بيانات الموقع الحالي (لا تُنشأ عناوين متعددة)
+    case 'UPDATE_ADDRESS': {
+      const current = state.addresses.find((a) => a.id === state.addressId) || state.addresses[0]
+      const updated = { ...current, ...action.patch, id: current?.id || 'a1' }
+      return { ...state, addresses: [updated], addressId: updated.id }
+    }
     case 'ADD_ADDRESS': {
       const id = action.address.id || `a${Date.now()}`
       if (state.addresses.some((a) => a.id === id)) return state
@@ -160,13 +172,18 @@ function reducer(state, action) {
       }
     }
     case 'CANCEL_ORDER':
-      return { ...state, orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, stage: 'cancelled' } : o)) }
+      // by: 'customer' (افتراضي) | 'merchant' — التاجر يستطيع الإلغاء حتى بعد القبول مع سبب يظهر للعميل
+      return { ...state, orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, stage: 'cancelled', cancelledBy: action.by || 'customer', cancelReason: action.reason || null, cancelledFrom: o.stage } : o)) }
     case 'REJECT_ORDER':
       return { ...state, orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, stage: 'rejected' } : o)) }
 
     // ── التاجر ────────────────────────────────────────────────
     case 'MERCHANT_STATUS':
       return { ...state, merchantStatus: action.status }
+    case 'SET_STORE_OPEN':
+      return { ...state, storeOpen: !!action.open, catalogVersion: state.catalogVersion + 1 }
+    case 'SET_OFFLINE':
+      return state.offline === action.offline ? state : { ...state, offline: action.offline }
     case 'MERCHANT_DELETE_PRODUCT': {
       const cart = { ...state.cart }
       delete cart[action.productId]
@@ -235,6 +252,7 @@ export function computeCart(cart, couponCode) {
       deliveryFee: gDelivery,
       total: Math.max(0, gSubtotal - gDiscount + gDelivery),
       minOrderMet: !store || gSubtotal >= (store.minOrder || 0),
+      storeClosed: !!store && store.open === false, // المتجر مغلق: لا يستقبل طلبات جديدة
     }
   })
 
@@ -243,6 +261,10 @@ export function computeCart(cart, couponCode) {
 
 // تعديلات كتالوج المنتجات المشترك تتم هنا (خارج الـ reducer النقي) وبشكل idempotent
 function applyCatalogSideEffects(action) {
+  if (action.type === 'SET_STORE_OPEN') {
+    const st = storeById(MERCHANT.storeId)
+    if (st) st.open = !!action.open
+  }
   if (action.type === 'MERCHANT_ADD_PRODUCT' && !PRODUCTS.some((p) => p.id === action.product.id)) PRODUCTS.push({ ...action.product, deleted: false })
   if (action.type === 'MERCHANT_DELETE_PRODUCT') {
     const p = productById(action.productId)
@@ -272,6 +294,16 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
     clearTimeout(toastTimer.current)
     setToast({ message, tone, id: Date.now() })
     toastTimer.current = setTimeout(() => setToast(null), 2200)
+  }, [])
+
+  // انقطاع الإنترنت: يُقرأ من المتصفح مباشرة (online/offline) ويمكن محاكاته من لوحة العرض عبر SET_OFFLINE
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const sync = () => dispatch({ type: 'SET_OFFLINE', offline: !navigator.onLine })
+    window.addEventListener('online', sync)
+    window.addEventListener('offline', sync)
+    if (!navigator.onLine) sync()
+    return () => { window.removeEventListener('online', sync); window.removeEventListener('offline', sync) }
   }, [])
 
   const navigate = useCallback((name, params = {}, opts = {}) => dispatch({ type: 'NAVIGATE', screen: { name, params }, ...opts }), [])
@@ -324,12 +356,14 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       cartCount: cartSummary.itemCount,
       isAuthenticated: state.auth.status === 'authenticated',
       isMerchant: state.merchantStatus === 'approved',
+      isBanned: state.merchantStatus === 'banned',
       requireAuth,
       isFavorite: (id) => state.favorites.has(id),
       toast,
       showToast,
       addressById: (id) => state.addresses.find((a) => a.id === id),
-      currentAddress: state.addresses.find((a) => a.id === state.addressId),
+      currentAddress: state.addresses.find((a) => a.id === state.addressId) || state.addresses[0],
+      merchantStore: storeById(MERCHANT.storeId), // متجر التاجر الوحيد
     }),
     [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth],
   )

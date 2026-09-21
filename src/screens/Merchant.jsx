@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Store, Upload, FileText, Image as ImageIcon, Check, X, Clock, ShieldCheck, Plus, Pencil, Trash2, Package, ClipboardList, BarChart3, ChevronLeft, AlertTriangle, DollarSign, TrendingUp, CheckCircle2, Bell, Lock, Mail, KeyRound, ArrowRight, Boxes, MapPin, Phone, Truck, UserRound, Landmark, Wallet } from 'lucide-react'
+import { Store, Upload, FileText, Image as ImageIcon, Check, X, Clock, ShieldCheck, Plus, Pencil, Trash2, Package, ClipboardList, BarChart3, ChevronLeft, AlertTriangle, DollarSign, TrendingUp, CheckCircle2, Bell, Lock, Mail, KeyRound, ArrowRight, Boxes, MapPin, Phone, Truck, UserRound, Landmark, Wallet, ShoppingBag, XCircle, Ban, LogOut } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, StateScreen, KeyValue, StageChip, Modal, Logo, PaymentChip, StoreMapPreview } from '../components/ui'
 import { CATEGORIES, CURRENCY, MERCHANT, MERCHANT_NOTIFICATIONS, ORDER_STAGES, STAGE_INDEX, USER, fmt, productById, storeById } from '../data/mock'
@@ -14,7 +14,7 @@ export function MerchantIntro() {
     <StateScreen tone="info" icon={Store} code="M-042" title="يلزم تعبئة بياناتك كتاجر أولاً" description="قبل فتح وإطلاق متجرك في سوق جديد، يتطلب النظام إكمال متطلبات التوثيق الرسمي (KYC) لحماية حقوق العملاء والتجار." primary={{ label: 'البدء بتعبئة نموذج التاجر', onClick: () => navigate('merchantForm', {}, { replace: true }) }}>
       <div className="card p-4 text-right">
         <p className="text-[12px] font-bold text-ink-900 mb-2">المستندات والمعلومات المطلوبة:</p>
-        {['اسم المتجر واسم صاحبه ورقم التواصل', 'موقع المتجر على الخريطة ووقت التوصيل المتوقع', 'بيانات استلام المدفوعات (حساب بنكي / محفظة)', 'صورة الهوية الوطنية أو السجل التجاري', 'صورة واجهة المتجر وشعاره'].map((t) => (
+        {['اسم المتجر واسم صاحبه ورقم التواصل', 'موقع المتجر على الخريطة ووقت التوصيل المتوقع', 'بيانات استلام المدفوعات (حساب بنكي / محفظة)', 'صورتان لبطاقة الهوية (الوجه والظهر)', 'صور حقيقية لواجهة المتجر (صورتان على الأقل)', 'صورة غلاف المتجر وشعاره'].map((t) => (
           <p key={t} className="text-[11px] font-medium text-ink-600 flex items-center gap-2 py-1"><Check size={13} className="text-success" strokeWidth={3} /> {t}</p>
         ))}
       </div>
@@ -25,6 +25,7 @@ export function MerchantIntro() {
 export function MerchantForm() {
   const { navigate, showToast, state } = useApp()
   const linkedAccount = state.auth.email || USER.email
+  // اسم صاحب المتجر ورقم التواصل يُملآن تلقائياً من بيانات الحساب (قابلة للتعديل)
   const [f, setF] = useState({ name: 'تكنو سيبس للإلكترونيات', owner: USER.name, phone: USER.phone, cat: 'electronics', city: 'تعز', area: 'شارع جمال، المسبح', deliveryTime: '45-60 دقيقة', bank: 'بنك الكريمي للتمويل الأصغر', account: '', holder: USER.name })
   const [loc, setLoc] = useState(null) // { x, y, label } يُحدَّد بالنقر على الخريطة
   const [errors, setErrors] = useState({})
@@ -134,34 +135,68 @@ export function MerchantForm() {
 
 export function MerchantIdentity() {
   const { navigate } = useApp()
-  const [file, setFile] = useState(null)
+  // التوثيق يتطلب: وجه البطاقة + ظهر البطاقة + صورتين حقيقيتين على الأقل لواجهة المتجر (محاكاة رفع)
+  const [idFront, setIdFront] = useState(null)
+  const [idBack, setIdBack] = useState(null)
+  const [storefront, setStorefront] = useState([])
+  const MIN_STOREFRONT = 2
+  const complete = !!idFront && !!idBack && storefront.length >= MIN_STOREFRONT
+  const missing = [!idFront && 'وجه البطاقة', !idBack && 'ظهر البطاقة', storefront.length < MIN_STOREFRONT && `${MIN_STOREFRONT - storefront.length} صورة لواجهة المتجر`].filter(Boolean)
+  const addStorefront = () => setStorefront((l) => (l.length >= 4 ? l : [...l, { name: `storefront_${l.length + 1}.jpg`, size: `${(1.6 + l.length * 0.4).toFixed(1)} ميجابايت` }]))
+  const Slot = ({ label, hint, file, onPick, onClear, icon: Icon = ImageIcon }) => (
+    <div>
+      <p className="text-[11px] font-bold text-ink-700 mb-1">{label}</p>
+      {file ? (
+        <div className="card p-2.5 flex items-center gap-2.5 animate-slide-up border-success">
+          <div className="w-9 h-9 rounded-lg bg-success-50 text-success flex items-center justify-center"><Check size={16} strokeWidth={3} /></div>
+          <div className="flex-1 min-w-0"><p className="text-[11px] font-bold font-mono truncate" dir="ltr">{file.name}</p><p className="text-[10px] text-ink-500">{file.size} • واضحة</p></div>
+          <button onClick={onClear} className="text-danger" aria-label={`حذف ${label}`}><X size={15} /></button>
+        </div>
+      ) : (
+        <button onClick={onPick} className="w-full rounded-card border-2 border-dashed border-primary-300 bg-white p-3 flex items-center gap-2.5 text-right hover:bg-primary-50 transition" aria-label={`رفع ${label}`}>
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary flex items-center justify-center shrink-0"><Icon size={16} /></div>
+          <div className="min-w-0"><p className="text-[11px] font-bold text-ink-900">التقاط أو رفع الصورة</p><p className="text-[10px] text-ink-400 leading-snug">{hint}</p></div>
+        </button>
+      )}
+    </div>
+  )
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title="رفع وثيقة إثبات الهوية" code="M-044" />
-      <div className="flex-1 px-5 py-4 space-y-4">
-        <div>
-          <h2 className="text-[16px] font-extrabold text-ink-900">صورة الهوية الوطنية أو السجل التجاري</h2>
-          <p className="text-[11px] text-ink-500 mt-1 leading-relaxed">يرجى التقاط صورة واضحة لوثيقة الهوية الوطنية للمالك أو السجل التجاري الساري.</p>
-        </div>
-        <button onClick={() => setFile({ name: 'national_id_front.jpg', size: '2.1 ميجابايت' })} className="w-full rounded-modal border-2 border-dashed border-primary-300 bg-white p-8 flex flex-col items-center text-center hover:bg-primary-50/40 transition">
-          <div className="w-14 h-14 rounded-full bg-primary-50 text-primary flex items-center justify-center"><Upload size={24} /></div>
-          <p className="text-[13px] font-bold text-ink-900 mt-3">اسحب الوثيقة هنا أو انقر للرفع</p>
-          <p className="text-[10px] text-ink-400 mt-1">JPG, PNG أو PDF · بحد أقصى 5 ميجابايت</p>
-        </button>
-        {file && (
-          <div className="card p-3 flex items-center gap-3 animate-slide-up">
-            <div className="w-10 h-10 rounded-xl bg-success-50 text-success flex items-center justify-center"><FileText size={18} /></div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold font-mono" dir="ltr">{file.name}</p>
-              <p className="text-[10px] text-ink-500">{file.size} • تم التحقق من الوضوح</p>
-            </div>
-            <button onClick={() => setFile(null)} className="text-danger"><X size={16} /></button>
+      <TopBar title="توثيق الهوية والمتجر" code="M-044" subtitle="صورتان للبطاقة + صور حقيقية لواجهة المتجر" />
+      <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-4">
+        <div className="card p-3.5 space-y-3">
+          <div>
+            <h2 className="text-[14px] font-extrabold text-ink-900 flex items-center gap-1.5"><FileText size={15} className="text-primary" /> بطاقة الهوية الوطنية لصاحب المتجر</h2>
+            <p className="text-[11px] text-ink-500 mt-0.5 leading-relaxed">صورتان واضحتان للبطاقة (الوجه والظهر) — تُستخدمان للتحقق من هوية المالك فقط ولا تظهران للعملاء.</p>
           </div>
-        )}
+          <Slot label="1) وجه البطاقة (الأمام)" hint="الاسم والرقم الوطني والصورة ظاهرة بوضوح" file={idFront} onPick={() => setIdFront({ name: 'national_id_front.jpg', size: '2.1 ميجابايت' })} onClear={() => setIdFront(null)} icon={FileText} />
+          <Slot label="2) ظهر البطاقة (الخلف)" hint="تاريخ الانتهاء وجهة الإصدار ظاهران" file={idBack} onPick={() => setIdBack({ name: 'national_id_back.jpg', size: '1.9 ميجابايت' })} onClear={() => setIdBack(null)} icon={FileText} />
+        </div>
+        <div className="card p-3.5 space-y-3">
+          <div>
+            <h2 className="text-[14px] font-extrabold text-ink-900 flex items-center gap-1.5"><Store size={15} className="text-secondary" /> صور حقيقية لواجهة المتجر</h2>
+            <p className="text-[11px] text-ink-500 mt-0.5 leading-relaxed">صورتان على الأقل (بحد أقصى 4) تُلتقطان في الموقع وتُظهر اللافتة والمدخل — تتحقق منها الإدارة بمطابقتها مع الموقع المحدد على الخريطة.</p>
+          </div>
+          {storefront.map((f, i) => (
+            <div key={f.name} className="card p-2.5 flex items-center gap-2.5 animate-slide-up border-success">
+              <div className="w-9 h-9 rounded-lg bg-success-50 text-success flex items-center justify-center"><ImageIcon size={16} /></div>
+              <div className="flex-1 min-w-0"><p className="text-[11px] font-bold font-mono truncate" dir="ltr">{f.name}</p><p className="text-[10px] text-ink-500">{f.size} • صورة {i + 1} من واجهة المتجر</p></div>
+              <button onClick={() => setStorefront((l) => l.filter((x) => x.name !== f.name))} className="text-danger" aria-label={`حذف صورة الواجهة ${i + 1}`}><X size={15} /></button>
+            </div>
+          ))}
+          {storefront.length < 4 && (
+            <button onClick={addStorefront} className="w-full rounded-card border-2 border-dashed border-secondary-300 bg-white p-3 flex items-center gap-2.5 text-right hover:bg-secondary-50 transition" aria-label="التقاط صورة لواجهة المتجر">
+              <div className="w-9 h-9 rounded-lg bg-secondary-50 text-secondary flex items-center justify-center shrink-0"><Upload size={16} /></div>
+              <div className="min-w-0"><p className="text-[11px] font-bold text-ink-900">التقاط صورة لواجهة المتجر ({storefront.length}/{MIN_STOREFRONT} على الأقل)</p><p className="text-[10px] text-ink-400">JPG أو PNG · بحد أقصى 5 ميجابايت للصورة</p></div>
+            </button>
+          )}
+        </div>
+        {!complete && <p className="text-[11px] font-bold text-warning-700 flex items-center gap-1.5"><AlertTriangle size={13} /> متبقٍ لإكمال التوثيق: {missing.join(' · ')}</p>}
+        {complete && <p className="text-[11px] font-bold text-success-700 flex items-center gap-1.5"><CheckCircle2 size={13} /> اكتملت صور التوثيق المطلوبة</p>}
       </div>
       <div className="px-5 pb-4">
-        <button disabled={!file} onClick={() => navigate('merchantMedia')} className="w-full btn-primary btn-lg">متابعة لرفع صورة المتجر</button>
+        <button disabled={!complete} onClick={() => navigate('merchantMedia')} className="w-full btn-primary btn-lg">متابعة لرفع صورة المتجر</button>
       </div>
       <HomeIndicator />
     </div>
@@ -217,9 +252,60 @@ export function MerchantPending() {
 export function MerchantApproved() {
   const { switchTab } = useApp()
   return (
-    <StateScreen tone="success" icon={ShieldCheck} code="M-049" showBack={false} title="تهانينا! تم اعتماد متجرك" description="تم التحقق من هويتك وموافقة إدارة منصة جديد على افتتاح متجرك التجاري في تعز" primary={{ label: 'الدخول للوحة تحكم التاجر', onClick: () => switchTab('m-dashboard') }}>
-      <KeyValue rows={[['اسم المتجر:', 'تكنو سيبس للإلكترونيات'], ['معرف التاجر:', MERCHANT.merchantId, 'text-primary'], ['الحالة التشغيلية:', 'نشط ومعتمد', 'text-success-700']]} />
+    <StateScreen tone="success" icon={ShieldCheck} code="M-049" showBack={false} title="تهانينا! تم اعتماد متجرك" description="تم التحقق من هويتك وموافقة إدارة منصة جديد على افتتاح متجرك التجاري في تعز" primary={{ label: 'الدخول إلى لوحة تحكم التاجر', onClick: () => switchTab('m-dashboard') }} secondary={{ label: 'متابعة التسوق كعميل', onClick: () => switchTab('home') }}>
+      <KeyValue rows={[['اسم المتجر:', 'تكنو سيبس للإلكترونيات'], ['معرف التاجر:', MERCHANT.merchantId, 'text-primary'], ['حالة الطلب:', 'مقبول — المتجر نشط', 'text-success-700']]} />
     </StateScreen>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+//  المتجر محظور — شاشة مستقلة: سبب الحظر + تقديم اعتراض للإدارة + تسجيل الخروج
+// ─────────────────────────────────────────────────────────────
+export function MerchantBanned() {
+  const { dispatch, showToast } = useApp()
+  const [appeal, setAppeal] = useState('')
+  const [sent, setSent] = useState(false)
+  const submitAppeal = () => {
+    if (appeal.trim().length < 20) return showToast('اكتب توضيحاً لا يقل عن 20 حرفاً', 'danger')
+    setSent(true)
+    showToast('تم إرسال اعتراضك إلى الإدارة', 'success')
+  }
+  return (
+    <div className="flex-1 flex flex-col bg-ink-50">
+      <StatusBar />
+      <TopBar title="المتجر محظور" subtitle="تم إيقاف متجرك من قِبل إدارة المنصة" onBack={() => dispatch({ type: 'LOGOUT' })} />
+      <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-3">
+        <div className="flex flex-col items-center text-center pt-2">
+          <div className="w-20 h-20 rounded-3xl bg-danger-50 text-danger flex items-center justify-center mb-3"><Ban size={38} strokeWidth={1.8} /></div>
+          <h2 className="text-[20px] font-extrabold text-ink-900">متجرك محظور حالياً</h2>
+          <p className="text-[12px] text-ink-500 mt-1.5 leading-relaxed max-w-[300px]">لا يظهر متجرك للعملاء ولا يستقبل طلبات جديدة حتى تُراجع الإدارة اعتراضك وترفع الحظر.</p>
+        </div>
+        <div className="bg-danger-50 border border-danger-100 rounded-card p-4">
+          <p className="text-[12px] font-extrabold text-danger flex items-center gap-1.5"><AlertTriangle size={14} /> سبب الحظر</p>
+          <p className="text-[12px] font-medium text-ink-800 mt-1.5 leading-relaxed">{MERCHANT.banReason}</p>
+          <p className="text-[10px] text-ink-500 mt-2">تاريخ الحظر: {MERCHANT.banDate} · معرف التاجر: <span className="tabular" dir="ltr">{MERCHANT.merchantId}</span></p>
+        </div>
+        {sent ? (
+          <div className="card p-4 text-center border-success animate-slide-up">
+            <CheckCircle2 size={30} className="text-success mx-auto" />
+            <p className="text-[13px] font-extrabold text-ink-900 mt-2">تم استلام اعتراضك</p>
+            <p className="text-[11px] text-ink-500 mt-1 leading-relaxed">ستراجع الإدارة الاعتراض خلال 3 أيام عمل ويصلك الرد على بريدك المسجّل.</p>
+          </div>
+        ) : (
+          <div className="card p-4">
+            <p className="text-[13px] font-extrabold text-ink-900 flex items-center gap-1.5"><Mail size={14} className="text-primary" /> تقديم اعتراض للإدارة</p>
+            <p className="text-[11px] text-ink-500 mt-1 leading-relaxed">اشرح موقفك وأرفق ما يثبت معالجة سبب الحظر، وستُراجع الإدارة الطلب.</p>
+            <textarea value={appeal} onChange={(e) => setAppeal(e.target.value)} className="field bg-white h-28 py-3 resize-none mt-3" placeholder="مثال: تمت إزالة المنتجات المخالفة وتحديث الأوصاف لتطابق الصور الفعلية..." aria-label="نص الاعتراض" />
+            <button onClick={submitAppeal} className="w-full btn-primary btn-md mt-3">إرسال الاعتراض للإدارة</button>
+          </div>
+        )}
+        <button onClick={() => dispatch({ type: 'LOGOUT' })} className="w-full card px-4 h-[52px] flex items-center gap-3 text-right text-danger hover:bg-danger-50 transition">
+          <div className="w-9 h-9 rounded-xl bg-danger-50 flex items-center justify-center"><LogOut size={18} /></div>
+          <span className="flex-1 text-[13px] font-bold">تسجيل الخروج</span>
+        </button>
+      </div>
+      <HomeIndicator />
+    </div>
   )
 }
 
@@ -239,8 +325,9 @@ export function MerchantRejected() {
 //  لوحة إدارة المتجر والمبيعات (M-050)
 // ─────────────────────────────────────────────────────────────
 export function MerchantDashboard() {
-  const { navigate, state, switchTab } = useApp()
-  const store = storeById(MERCHANT.storeId)
+  const { navigate, state, switchTab, merchantStore: store, dispatch, showToast } = useApp()
+  const open = state.storeOpen // حالة المتجر (مفتوح/مغلق) — تنعكس فوراً على واجهة العميل والسلة
+  const toggleOpen = () => { dispatch({ type: 'SET_STORE_OPEN', open: !open }); showToast(open ? 'تم إغلاق المتجر — لن تُستقبل طلبات جديدة' : 'تم فتح المتجر — يستقبل الطلبات الآن', open ? 'danger' : 'success') }
   const incoming = state.orders.filter((o) => o.stage === 'new').length
   const recent = state.orders.slice(0, 3)
   const active = state.merchantProducts.map(productById).filter(Boolean)
@@ -263,15 +350,26 @@ export function MerchantDashboard() {
         <div className="absolute -top-16 -right-10 w-48 h-48 rounded-full bg-white/10" />
         <StatusBar light />
         <div className="px-5 pb-5 flex items-center gap-3 relative">
-          <div className="flex-1">
-            <h1 className="text-[18px] font-extrabold flex items-center gap-1.5">{store.name} <ShieldCheck size={16} className="text-warning" /></h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[18px] font-extrabold flex items-center gap-1.5 truncate">{store.name} <ShieldCheck size={16} className="text-warning shrink-0" /></h1>
             <p className="text-[11px] text-white/80">لوحة إدارة المتجر والمبيعات</p>
           </div>
-          <button onClick={() => navigate('m-notifications')} className="relative w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><Bell size={18} /><span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary text-[9px] font-extrabold flex items-center justify-center">3</span></button>
-          <button onClick={() => switchTab('account')} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><Store size={18} /></button>
+          {/* زر التسوق: التبديل إلى واجهة العميل بنفس الحساب دون تسجيل خروج */}
+          <button onClick={() => switchTab('home')} className="h-9 px-3 rounded-full bg-white text-primary text-[11px] font-extrabold flex items-center gap-1.5 shrink-0" aria-label="التسوق"><ShoppingBag size={15} /> التسوق</button>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-4">
+        {/* حالة المتجر: مفتوح / مغلق — Toggle واضح يؤثر على واجهة العميل واستقبال الطلبات */}
+        <div className={`card p-3.5 flex items-center gap-3 border ${open ? 'border-success-100' : 'border-danger-100 bg-danger-50/40'}`}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${open ? 'bg-success-50 text-success' : 'bg-danger-50 text-danger'}`}><Store size={22} /></div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-extrabold text-ink-900 flex items-center gap-1.5">حالة المتجر: <span className={open ? 'text-success-700' : 'text-danger'}>{open ? 'مفتوح' : 'مغلق'}</span></p>
+            <p className="text-[10px] text-ink-500 leading-snug">{open ? 'يستقبل طلبات جديدة الآن ويظهر للعملاء «مفتوح»' : 'لا يستقبل طلبات جديدة — يظهر للعملاء «مغلق حالياً» وتُعطَّل الإضافة للسلة'}</p>
+          </div>
+          <button role="switch" aria-checked={open} aria-label="تبديل حالة المتجر" onClick={toggleOpen} className={`relative w-[52px] h-[30px] rounded-full transition-colors shrink-0 ${open ? 'bg-success' : 'bg-ink-300'}`}>
+            <span className={`absolute top-[3px] w-6 h-6 rounded-full bg-white shadow-card transition-all ${open ? 'right-[3px]' : 'right-[25px]'}`} />
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Stat Icon={DollarSign} label="مبيعات اليوم" value={fmt(MERCHANT.todaySales)} unit={CURRENCY} sub={MERCHANT.salesDelta} tone="primary" />
           <Stat Icon={ClipboardList} label="طلبات جديدة" value={incoming} unit="طلبات" sub={incoming ? 'تتطلب إجراء سريع' : 'لا توجد طلبات معلقة'} tone="secondary" />
@@ -294,7 +392,7 @@ export function MerchantDashboard() {
             {recent.map((o) => (
               <button key={o.id} onClick={() => navigate('m-order', { orderId: o.id })} className="w-full card p-3 flex items-center gap-3 text-right">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-bold text-ink-900">محمد سعيد</p>
+                  <p className="text-[12px] font-bold text-ink-900">{o.customer?.name || 'محمد سعيد'}</p>
                   <p className="text-[10px] text-ink-400 tabular">{o.items.length} منتجات • <span dir="ltr">{o.id}</span></p>
                 </div>
                 <div className="text-left">
@@ -312,13 +410,13 @@ export function MerchantDashboard() {
 }
 
 export function MerchantStoreEdit() {
-  const { back, showToast } = useApp()
-  const store = storeById(MERCHANT.storeId)
-  const [f, setF] = useState({ name: store.name, desc: store.description, prep: store.prepTime, min: store.minOrder, owner: store.owner, phone: store.phone, deliveryTime: store.deliveryTime, bank: store.payment.bank, account: store.payment.account, holder: store.payment.holder, wallet: store.payment.wallet })
+  const { back, showToast, merchantStore: store, isMerchant } = useApp()
+  const locked = isMerchant // بعد توثيق المتجر (approved) يُقفل اسم المتجر ونشاطه؛ قبل التوثيق يبقيان قابلين للتعديل
+  const [f, setF] = useState({ name: store.name, cat: store.category || 'electronics', desc: store.description, prep: store.prepTime, min: store.minOrder, owner: store.owner, phone: store.phone, deliveryTime: store.deliveryTime, bank: store.payment.bank, account: store.payment.account, holder: store.payment.holder, wallet: store.payment.wallet })
   const [loc, setLoc] = useState(store.location)
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const save = () => {
-    Object.assign(store, { name: f.name, description: f.desc, prepTime: f.prep, minOrder: Number(f.min), owner: f.owner, phone: f.phone, deliveryTime: f.deliveryTime, location: loc, payment: { bank: f.bank, account: f.account, holder: f.holder, wallet: f.wallet } })
+    Object.assign(store, { ...(locked ? {} : { name: f.name, category: f.cat }), description: f.desc, prepTime: f.prep, minOrder: Number(f.min), owner: f.owner, phone: f.phone, deliveryTime: f.deliveryTime, location: loc, payment: { bank: f.bank, account: f.account, holder: f.holder, wallet: f.wallet } })
     showToast('تم حفظ التعديلات', 'success')
     back()
   }
@@ -327,7 +425,21 @@ export function MerchantStoreEdit() {
       <StatusBar />
       <TopBar title="إدارة وتعديل بيانات المتجر" subtitle="البيانات، التواصل، الموقع، التوصيل، وبيانات الدفع" />
       <div className="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-4">
-        <div><label className="label">اسم المتجر الظاهر للعملاء</label><input className="field bg-white" value={f.name} onChange={set('name')} /></div>
+        {locked && (
+          <div className="rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 flex items-center gap-2 text-[11px] font-medium text-primary">
+            <Lock size={14} className="shrink-0" /> المتجر موثّق — اسم المتجر ونوع النشاط ثابتان بعد التوثيق ولا يمكن تعديلهما إلا عبر الإدارة
+          </div>
+        )}
+        <div>
+          <label className="label flex items-center gap-1">اسم المتجر الظاهر للعملاء {locked && <Lock size={11} className="text-ink-400" />}</label>
+          <input className={`field ${locked ? 'bg-ink-100 text-ink-500 cursor-not-allowed' : 'bg-white'}`} value={f.name} onChange={set('name')} disabled={locked} aria-label="اسم المتجر" />
+        </div>
+        <div>
+          <label className="label flex items-center gap-1">نوع النشاط / التصنيف الرئيسي {locked && <Lock size={11} className="text-ink-400" />}</label>
+          <select className={`field ${locked ? 'bg-ink-100 text-ink-500 cursor-not-allowed' : 'bg-white'}`} value={f.cat} onChange={set('cat')} disabled={locked} aria-label="نوع النشاط">
+            {CATEGORIES.filter((c) => c.id !== 'all').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
         <div><label className="label">الوصف التعريفي للمتجر</label><textarea className="field bg-white h-24 py-3 resize-none" value={f.desc} onChange={set('desc')} /></div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className="label">اسم صاحب المتجر</label><input className="field bg-white" value={f.owner} onChange={set('owner')} /></div>
@@ -365,8 +477,9 @@ export function MerchantStoreEdit() {
 export function MerchantProducts() {
   const { state, navigate, dispatch, showToast, current } = useApp()
   const [filter, setFilter] = useState('all')
-  const [confirm, setConfirm] = useState(current.params?.preset === 'confirm' ? productById(state.merchantProducts[0]) || null : null)
-  const list = state.merchantProducts.map(productById).filter(Boolean).filter((p) => filter === 'all' || (filter === 'out' ? p.stock <= 0 : p.stock > 0))
+  const mine = state.merchantProducts.map(productById).filter(Boolean)
+  const [confirm, setConfirm] = useState(current.params?.preset === 'confirm' ? mine[0] || null : null)
+  const list = mine.filter((p) => filter === 'all' || (filter === 'out' ? p.stock <= 0 : p.stock > 0))
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
       <StatusBar />
@@ -468,6 +581,25 @@ export function MerchantProductForm() {
 export function MerchantOrders() {
   const { state, navigate } = useApp()
   const orders = state.orders
+  // فصل واضح: طلبات جديدة تحتاج قبول/رفض · طلبات قيد التنفيذ (تجهيز/في الطريق) · طلبات منتهية
+  const sections = [
+    { key: 'new', title: 'طلبات جديدة — بانتظار قرارك', hint: 'اقبل أو ارفض خلال وقت قصير', tone: 'text-primary', list: orders.filter((o) => o.stage === 'new') },
+    { key: 'active', title: 'طلبات قيد التنفيذ', hint: 'قيد التجهيز أو في الطريق', tone: 'text-warning-700', list: orders.filter((o) => ['preparing', 'out'].includes(o.stage)) },
+    { key: 'done', title: 'طلبات منتهية', hint: 'تم توصيلها أو أُلغيت', tone: 'text-ink-500', list: orders.filter((o) => ['delivered', 'cancelled', 'rejected'].includes(o.stage)) },
+  ]
+  const OrderCard = ({ o }) => (
+    <button onClick={() => navigate('m-order', { orderId: o.id })} className={`w-full card p-3.5 text-right ${o.stage === 'new' ? 'border-2 border-primary' : ''}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-extrabold text-primary tabular" dir="ltr">{o.id}</span>
+        <div className="flex items-center gap-1.5">{o.paymentStatus === 'pending_confirmation' && <PaymentChip status={o.paymentStatus} />}<StageChip stage={o.stage} by={o.cancelledBy} /></div>
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <div><p className="text-[13px] font-bold text-ink-900">{o.customer?.name || 'محمد سعيد'}</p><p className="text-[10px] text-ink-400">تعز · {o.createdAt} · {o.items.length} أصناف</p></div>
+        <Price value={o.total} size="sm" />
+      </div>
+      <div className="border-t border-ink-100 mt-2.5 pt-2 flex items-center justify-between text-[11px] font-bold text-primary"><span>{o.stage === 'new' ? (o.paymentStatus === 'pending_confirmation' ? 'تأكيد استلام التحويل وبدء التجهيز' : 'قبول وبدء التجهيز أو رفض') : o.stage === 'preparing' ? 'متابعة التجهيز وتسليم المندوب' : o.stage === 'out' ? 'متابعة التوصيل' : o.stage === 'cancelled' && o.cancelledBy === 'merchant' ? 'ألغيته أنت' : 'عرض التفاصيل'}</span><ChevronLeft size={14} /></div>
+    </button>
+  )
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
       <StatusBar />
@@ -475,24 +607,20 @@ export function MerchantOrders() {
         <h1 className="text-[18px] font-extrabold text-ink-900">الطلبات الواردة للمتجر</h1>
         <p className="text-[11px] text-ink-500">متابعة طلبات العملاء وتحديث حالات التجهيز</p>
       </div>
-      <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-2.5">
-        {orders.length ? orders.map((o) => (
-          <button key={o.id} onClick={() => navigate('m-order', { orderId: o.id })} className={`w-full card p-3.5 text-right ${o.stage === 'new' ? 'border-2 border-primary' : ''}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] font-extrabold text-primary tabular" dir="ltr">{o.id}</span>
-              <div className="flex items-center gap-1.5">{o.paymentStatus === 'pending_confirmation' && <PaymentChip status={o.paymentStatus} />}<StageChip stage={o.stage} /></div>
+      <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-5">
+        {orders.length ? sections.filter((sec) => sec.list.length || sec.key === 'new').map((sec) => (
+          <section key={sec.key}>
+            <div className="flex items-center justify-between mb-2">
+              <p className={`text-[13px] font-extrabold ${sec.tone}`}>{sec.title} <span className="text-[11px] font-bold text-ink-400">({sec.list.length})</span></p>
+              <span className="text-[10px] font-medium text-ink-400">{sec.hint}</span>
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <div><p className="text-[13px] font-bold text-ink-900">محمد سعيد</p><p className="text-[10px] text-ink-400">تعز · {o.createdAt} · {o.items.length} أصناف</p></div>
-              <Price value={o.total} size="sm" />
-            </div>
-            <div className="border-t border-ink-100 mt-2.5 pt-2 flex items-center justify-between text-[11px] font-bold text-primary"><span>{o.stage === 'new' ? (o.paymentStatus === 'pending_confirmation' ? 'تأكيد استلام التحويل وبدء التجهيز' : 'قبول وبدء التجهيز أو الرفض') : 'فتح تفاصيل الطلب وتحديث المرحلة'}</span><ChevronLeft size={14} /></div>
-          </button>
+            {sec.list.length ? <div className="space-y-2.5">{sec.list.map((o) => <OrderCard key={o.id} o={o} />)}</div> : <div className="card p-4 text-center text-[11px] text-ink-400">لا توجد طلبات جديدة الآن</div>}
+          </section>
         )) : (
           <div className="flex flex-col items-center text-center pt-16 px-6">
             <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><ClipboardList size={40} strokeWidth={1.6} /></div>
             <h2 className="text-[20px] font-extrabold">لا توجد طلبات واردة حالياً</h2>
-            <p className="text-[12px] text-ink-500 mt-2">متجرك جاهز لاستقبال الطلبات. ستصلك إشعارات فورية حال قيام العملاء بالطلب.</p>
+            <p className="text-[12px] text-ink-500 mt-2">متجرك جاهز لاستقبال الطلبات. ستظهر هنا فور قيام العملاء بالطلب.</p>
           </div>
         )}
       </div>
@@ -504,22 +632,33 @@ export function MerchantOrders() {
 export function MerchantOrder() {
   const { current, state, dispatch, navigate, back, showToast, addressById } = useApp()
   const order = state.orders.find((o) => o.id === current.params.orderId)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('نفدت الكمية من المخزون')
   if (!order) return null
   const address = addressById(order.addressId)
   const idx = STAGE_INDEX[order.stage]
   const transferPending = order.paymentStatus === 'pending_confirmation'
   const setStage = (stage, msg) => { dispatch({ type: 'SET_ORDER_STAGE', orderId: order.id, stage }); showToast(msg, 'success') }
+  // إلغاء التاجر بعد القبول (قيد التجهيز / في الطريق): نافذة تأكيد بسبب واضح يصل للعميل
+  const CANCEL_REASONS = ['نفدت الكمية من المخزون', 'تعذر التوصيل إلى العنوان', 'خطأ في السعر أو بيانات المنتج', 'المتجر مغلق حالياً']
+  const canMerchantCancel = ['preparing', 'out'].includes(order.stage)
+  const cancelByMerchant = () => {
+    dispatch({ type: 'CANCEL_ORDER', orderId: order.id, by: 'merchant', reason: cancelReason })
+    setCancelOpen(false)
+    showToast('تم إلغاء الطلب وإبلاغ العميل بالسبب', 'danger')
+  }
   // انتقالان يدويان فقط: (جديد → قيد التجهيز) عبر القبول/تأكيد الدفع، ثم (قيد التجهيز → في الطريق). التسليم النهائي يُؤكَّد تلقائياً من المندوب أو يدوياً هنا
   const nextAction = { preparing: ['تسليم الطلب للمندوب — في الطريق', 'out', 'btn-primary'], out: ['تأكيد وصول الطلب للعميل', 'delivered', 'btn-success'] }[order.stage]
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title={order.stage === 'new' ? (transferPending ? 'تأكيد التحويل وبدء التجهيز' : 'قرار قبول أو رفض الطلب') : 'معالجة وتحديث حالة الطلب'} right={<StageChip stage={order.stage} />} />
+      <TopBar title={order.stage === 'new' ? (transferPending ? 'تأكيد التحويل وبدء التجهيز' : 'قرار قبول أو رفض الطلب') : 'معالجة وتحديث حالة الطلب'} right={<StageChip stage={order.stage} by={order.cancelledBy} />} />
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-3">
         <div className="card p-4">
           <div className="flex items-center justify-between"><span className="text-[13px] font-extrabold text-primary tabular" dir="ltr">{order.id}</span><span className="text-[10px] text-ink-400">{order.createdAt}</span></div>
-          <p className="text-[14px] font-bold text-ink-900 mt-1">العميل: محمد سعيد <span className="text-[11px] text-ink-400 font-medium tabular" dir="ltr">(773030064)</span></p>
-          <p className="text-[11px] text-ink-500">{address?.details}</p>
+          <p className="text-[14px] font-bold text-ink-900 mt-1">العميل: {order.customer?.name || address?.name || 'محمد سعيد'} <span className="text-[11px] text-ink-400 font-medium tabular" dir="ltr">({order.customer?.phone || address?.phone || '773030064'})</span></p>
+          <p className="text-[11px] text-ink-500">{order.customer?.details || address?.details}</p>
+          {order.customer?.notes && <p className="text-[10px] text-ink-400 mt-0.5">ملاحظات العميل: {order.customer.notes}</p>}
           <div className="flex items-center gap-1.5 mt-2 flex-wrap"><PaymentChip status={order.paymentStatus || 'cod'} /><Chip tone="ink">{order.payment}</Chip></div>
         </div>
 
@@ -568,6 +707,13 @@ export function MerchantOrder() {
             </ol>
           </div>
         )}
+        {order.stage === 'cancelled' && (
+          <div className="card p-4 border-2 border-danger-100 bg-danger-50/40">
+            <p className="text-[13px] font-extrabold text-danger-700 flex items-center gap-1.5"><XCircle size={16} /> {order.cancelledBy === 'merchant' ? 'ألغيت هذا الطلب' : 'ألغى العميل هذا الطلب'}</p>
+            {order.cancelReason && <p className="text-[11px] text-ink-600 mt-1">السبب المرسل للعميل: <b>{order.cancelReason}</b></p>}
+            {order.cancelledFrom && order.cancelledFrom !== 'new' && <p className="text-[10px] text-ink-400 mt-0.5">أُلغي بعد القبول (كان {order.cancelledFrom === 'preparing' ? 'قيد التجهيز' : 'في الطريق'})</p>}
+          </div>
+        )}
         {order.stage === 'delivered' && <div className="card p-6 text-center"><CheckCircle2 size={36} className="text-success mx-auto" /><p className="text-[14px] font-extrabold mt-2">تم تسليم الطلب بنجاح!</p><p className="text-[11px] text-ink-500 mt-1">أُضيف المبلغ إلى مستحقاتك.</p></div>}
       </div>
       <div className="px-4 pb-4 pt-2 space-y-2">
@@ -579,9 +725,24 @@ export function MerchantOrder() {
           )}
           <button onClick={() => { dispatch({ type: 'REJECT_ORDER', orderId: order.id }); navigate('m-order-rejected', { orderId: order.id, tab: 'm-orders' }, { replace: true }) }} className="w-full btn-outline btn-lg !text-danger !border-danger-100"><X size={18} /> رفض الطلب{transferPending ? ' (لم يصل المبلغ)' : ''}</button>
         </>)}
+        {canMerchantCancel && <button onClick={() => setCancelOpen(true)} className="w-full btn-outline btn-md !text-danger !border-danger-100 hover:!bg-danger-50"><XCircle size={16} /> إلغاء الطلب (بعد القبول)</button>}
         {nextAction && <button onClick={() => setStage(nextAction[1], nextAction[1] === 'delivered' ? 'تم تسليم الطلب بنجاح!' : 'الطلب الآن في الطريق إلى العميل')} className={`w-full btn-lg ${nextAction[2]}`}>{nextAction[1] === 'out' ? <Truck size={18} /> : <CheckCircle2 size={18} />} {nextAction[0]}</button>}
         {(order.stage === 'delivered' || order.stage === 'rejected' || order.stage === 'cancelled') && <button onClick={back} className="w-full btn-outline btn-lg">العودة للطلبات الواردة</button>}
       </div>
+      <Modal open={cancelOpen} onClose={() => setCancelOpen(false)}>
+        <div className="w-16 h-16 rounded-2xl bg-danger-50 text-danger flex items-center justify-center mx-auto mt-2"><XCircle size={28} /></div>
+        <h2 className="text-[18px] font-extrabold text-center mt-3">إلغاء الطلب بعد قبوله؟</h2>
+        <p className="text-[12px] text-ink-500 text-center mt-1 leading-relaxed">سيُبلَّغ العميل فوراً بالإلغاء والسبب، وتُعاد أي مبالغ محوّلة. اختر السبب:</p>
+        <div className="space-y-1.5 mt-4">
+          {CANCEL_REASONS.map((r) => (
+            <button key={r} onClick={() => setCancelReason(r)} className={`w-full flex items-center gap-2 rounded-xl border p-2.5 text-right text-[12px] font-bold ${cancelReason === r ? 'border-danger bg-danger-50 text-danger-700' : 'border-ink-100 text-ink-700'}`}>
+              <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${cancelReason === r ? 'bg-danger border-danger text-white' : 'border-ink-300'}`}>{cancelReason === r && <Check size={10} strokeWidth={4} />}</span>{r}
+            </button>
+          ))}
+        </div>
+        <button onClick={cancelByMerchant} className="w-full btn-danger btn-md mt-4">تأكيد إلغاء الطلب وإبلاغ العميل</button>
+        <button onClick={() => setCancelOpen(false)} className="w-full btn-outline btn-md mt-2">تراجع — متابعة الطلب</button>
+      </Modal>
       <HomeIndicator />
     </div>
   )
@@ -656,7 +817,7 @@ export function MerchantStats() {
   const max = Math.max(...MERCHANT.weekly.map((d) => d.value))
   const top = useMemo(() => [...state.merchantProducts.map(productById).filter(Boolean)].sort((a, b) => b.sold - a.sold).slice(0, 3), [state.merchantProducts])
   const total = MERCHANT.weekly.reduce((s, d) => s + d.value, 0)
-  const noData = state.orders.length === 0 && state.merchantProducts.length === 0
+  const noData = state.orders.length === 0 && top.length === 0
   if (noData) {
     return (
       <div className="flex-1 flex flex-col bg-ink-50 relative">
