@@ -22,7 +22,7 @@ export function Account() {
         <StatusBar />
         <div className="bg-white border-b border-ink-100 px-4 pb-3">
           <h1 className="text-[18px] font-extrabold text-ink-900">حسابي</h1>
-          <p className="text-[11px] text-ink-500 font-medium">جلستك غير مسجّلة — سجّل الدخول للتسوق وإضافة المنتجات إلى السلة</p>
+          <p className="text-[11px] text-ink-500 font-medium">أنت تتصفح كزائر — سجّل الدخول كعميل لإضافة المنتجات إلى السلة وإتمام الشراء</p>
         </div>
         <div className="flex-1 overflow-y-auto scroll-thin px-5 py-6 pb-28">
           <div className="flex flex-col items-center text-center">

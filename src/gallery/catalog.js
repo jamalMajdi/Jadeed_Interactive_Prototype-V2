@@ -30,7 +30,7 @@ export const GALLERY = [
       { key: 'onb-1', title: 'التهيئة 1 — اشتري أغراضك بكل سهولة', screen: 'onboarding', params: { slide: 0 }, figma: '11:54' },
       { key: 'onb-2', title: 'التهيئة 2 — اكتشف أفضل الأسعار والعروض', screen: 'onboarding', params: { slide: 1 }, figma: '11:98' },
       { key: 'onb-3', title: 'التهيئة 3 — سوقك الذكي والشامل', screen: 'onboarding', params: { slide: 2 }, figma: '11:200' },
-      { key: 'account-type', title: 'تحديد نوع الحساب', screen: 'accountType', figma: '11:137' },
+      { key: 'account-type', title: 'تحديد نوع الحساب (نوع واحد + تصفح كزائر)', screen: 'accountType', figma: '11:137' },
     ],
   },
   {
@@ -72,7 +72,9 @@ export const GALLERY = [
     title: 'رحلة العميل — التسوق',
     desc: 'الرئيسية، المتاجر، المنتجات، البحث والفلترة، المفضلة',
     items: [
-      { key: 'home', title: 'الرئيسية — المتاجر المعتمدة في تعز', screen: 'home', state: { cart: SAMPLE_CART }, figma: '11:816' },
+      { key: 'home', title: 'الرئيسية — المتاجر المعتمدة في تعز (شريط العروض: 4 إعلانات)', screen: 'home', state: { cart: SAMPLE_CART }, figma: '11:816' },
+      { key: 'home-guest', title: 'الرئيسية — زائر بدون تسجيل (التصفح متاح)', screen: 'home', state: { auth: AUTH_GUEST, favorites: new Set() }, note: 'الزائر يتصفح المنتجات والمتاجر والعروض؛ الإضافة للسلة تفتح نافذة المطالبة' },
+      { key: 'home-guest-prompt', title: 'مطالبة الزائر بتسجيل الدخول عند الإضافة للسلة', screen: 'home', state: { auth: AUTH_GUEST, favorites: new Set(), authPrompt: { productName: 'سماعات رأس لاسلكية احترافية', returnTo: { name: 'home' } } }, note: 'نافذة بخياري «تسجيل الدخول» و«إنشاء حساب كعميل» + متابعة التصفح' },
       { key: 'home-offline', title: 'انقطاع الإنترنت أثناء التصفح — إعادة المحاولة', screen: 'home', state: { cart: SAMPLE_CART, offline: true }, note: 'جديد (غير موجود في Figma): شريط الانقطاع يظهر فوق أي شاشة', figma: '—' },
       { key: 'nearby', title: 'المتاجر القريبة منك', code: 'CUS-017', screen: 'nearbyStores', stack: ['home'], figma: '11:1247' },
       { key: 'nearby-empty', title: 'لا توجد متاجر قريبة', code: 'CUS-018', screen: 'nearbyStores', params: { area: 'الحوبان' }, stack: ['home'], figma: '11:1392' },

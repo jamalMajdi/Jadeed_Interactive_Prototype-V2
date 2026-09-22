@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, ShoppingCart, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, WifiOff, RefreshCcw, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation, AlertTriangle, Info } from 'lucide-react'
+import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, ShoppingCart, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, WifiOff, RefreshCcw, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation, AlertTriangle, Info, LogIn, UserPlus } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { CURRENCY, PAYMENT_STATUS, fmt, productById, storeById } from '../data/mock'
 
@@ -386,6 +386,36 @@ export function Modal({ open, onClose, children }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+//  مطالبة الزائر بالدخول عند محاولة الإضافة للسلة — التصفح متاح للجميع، والشراء لحساب عميل مسجّل
+// ─────────────────────────────────────────────────────────────
+export function AuthPrompt() {
+  const { state, dispatch, navigate } = useApp()
+  const prompt = state.authPrompt
+  if (!prompt) return null
+  const close = () => dispatch({ type: 'AUTH_PROMPT_CLOSE' })
+  const go = (screen) => {
+    close()
+    dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'customer' })
+    dispatch({ type: 'AUTH_GATE', returnTo: prompt.returnTo || null }) // العودة إلى المنتج/المتجر نفسه بعد الدخول
+    navigate(screen, screen === 'login' ? { gated: true } : {})
+  }
+  return (
+    <Modal open onClose={close}>
+      <button onClick={close} className="icon-btn absolute top-3 left-3" aria-label="إغلاق"><X size={16} /></button>
+      <div className="w-16 h-16 rounded-2xl bg-primary-50 text-primary flex items-center justify-center mx-auto mt-2"><ShoppingCart size={28} strokeWidth={2} /></div>
+      <h2 className="text-[18px] font-extrabold text-center mt-3 text-ink-900">سجّل الدخول لإضافة المنتج إلى السلة</h2>
+      <p className="text-[12px] text-ink-500 text-center mt-1 leading-relaxed">يمكنك تصفح المنتجات والمتاجر والعروض كزائر، لكن إضافة المنتجات للسلة وإتمام الشراء يتطلبان حساب عميل.</p>
+      {prompt.productName && (
+        <div className="card p-3 mt-4 text-center"><p className="text-[10px] text-ink-400">المنتج الذي حاولت إضافته:</p><p className="text-[13px] font-bold text-primary line-clamp-1">{prompt.productName}</p></div>
+      )}
+      <button onClick={() => go('login')} className="w-full btn-primary btn-lg mt-4"><LogIn size={18} /> تسجيل الدخول</button>
+      <button onClick={() => go('register')} className="w-full btn-outline btn-md mt-2"><UserPlus size={17} /> إنشاء حساب كعميل</button>
+      <button onClick={close} className="w-full h-10 text-[12px] font-bold text-ink-500 mt-1">متابعة التصفح كزائر</button>
+    </Modal>
+  )
+}
+
 export function Toast() {
   const { toast } = useApp()
   if (!toast) return null
@@ -450,7 +480,7 @@ export function FavoriteButton({ productId, className = '' }) {
 }
 
 export function AddToCartButton({ product, size = 'xs', full = false }) {
-  const { dispatch, showToast, state, requireAuth } = useApp()
+  const { dispatch, showToast, state, requireCustomer } = useApp()
   const closed = storeById(product.storeId)?.open === false // المتجر مغلق: لا يستقبل طلبات جديدة
   const inCart = state.cart[product.id] || 0
   const soldOut = product.stock <= 0
@@ -461,7 +491,7 @@ export function AddToCartButton({ product, size = 'xs', full = false }) {
         e.stopPropagation()
         if (closed) return showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger')
         if (soldOut) return showToast('عذراً، نفدت الكمية من المخزون', 'danger')
-        if (!requireAuth(undefined, 'سجّل الدخول كعميل لإضافة المنتجات إلى السلة')) return // الإضافة للسلة تتطلب حساب عميل مسجّلاً
+        if (!requireCustomer(product.shortName)) return // الزائر: نافذة مطالبة بتسجيل الدخول أو إنشاء حساب عميل
         if (maxed) return showToast(`الحد الأقصى المتاح ${product.stock} قطعة`, 'danger')
         dispatch({ type: 'ADD_TO_CART', productId: product.id })
         showToast('أُضيف إلى السلة', 'success')

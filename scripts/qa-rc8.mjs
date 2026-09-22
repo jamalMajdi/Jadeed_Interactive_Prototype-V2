@@ -30,7 +30,7 @@ async function login(c) {
   const c = await fresh(); const { phone, nav, has, btn, page, demo } = c
   await btn('تخطي').click(); await T(400) // تخطي شرائح التهيئة فقط
   check('1) خيارات نوع الحساب: عميل + تاجر فقط (لا «كلاهما»)', (await btn(/متسوق \(مشتري\)/, false).count()) === 1 && (await btn(/تاجر \(صاحب متجر\)/, false).count()) === 1 && (await btn(/كلاهما/, false).count()) === 0)
-  check('2) لا زر «تخطي» ولا «تصفح كزائر» في شاشة نوع الحساب', (await btn('تخطي').count()) === 0 && (await btn(/كزائر/, false).count()) === 0)
+  check('2→RC-9) لا زر «تخطي» في شاشة نوع الحساب؛ «تصفح كزائر» متاح للتصفح فقط', (await btn('تخطي').count()) === 0 && (await btn('تصفح كزائر بدون تسجيل').count()) === 1)
   await btn(/متسوق \(مشتري\)/, false).click(); await btn('متابعة').click(); await T(500)
   check('2) لا رابط «تصفح كزائر» في شاشة الدخول', (await btn(/كزائر/, false).count()) === 0)
   // محاولة الإضافة للسلة بلا تسجيل: عبر المعرض بحالة غير مسجّل (لا يوجد مسار زائر في النموذج)
@@ -47,7 +47,7 @@ async function login(c) {
   await btn(/متسوق \(مشتري\)/, false).click(); await btn('متابعة').click(); await T(500)
   // الرجوع من الدخول إلى نوع الحساب ثم الرئيسية غير متاح — لذلك نتحقق من حارس الـ reducer + زر المنتج عبر شاشة معرض بحالة guest
   await page.goto('http://localhost:5173/#/gallery/account-guest'); await T(700)
-  check('2) شاشة حسابي لغير المسجّل تطلب الدخول للتسوق (لا نص «تتصفح كزائر»)', (await has('سجّل الدخول للتسوق')) && !(await has('تتصفح كزائر')))
+  check('2→RC-9) شاشة حسابي للزائر توضح أن الإضافة للسلة والشراء يتطلبان حساب عميل', (await has('أنت تتصفح كزائر')) && (await has('لإضافة المنتجات إلى السلة')))
   await page.close()
 }
 {
@@ -56,7 +56,7 @@ async function login(c) {
   await demo(/الدخول مباشرة كعميل/).click(); await T(600)
   await nav().getByRole('button', { name: 'حسابي' }).click(); await T(400)
   await btn('تسجيل الخروج').click(); await T(500)
-  check('2) تسجيل الخروج يعيد إلى اختيار نوع الحساب (لا تصفح كزائر بعد الخروج)', (await has('مرحباً بك في')) && (await btn(/متسوق \(مشتري\)/, false).count()) === 1)
+  check('2→RC-9) تسجيل الخروج يعيد إلى الرئيسية كزائر (التصفح متاح بلا إجبار)', (await has('الأقسام والتصنيفات')) && (await nav().count()) === 1)
   await page.close()
 }
 {
@@ -66,7 +66,9 @@ async function login(c) {
   await phone().locator('nav').getByRole('button', { name: 'حسابي' }).click(); await T(400)
   await btn('تسجيل الخروج').click(); await T(500)
   // بعد الخروج: شاشة نوع الحساب — لا مسار للرئيسية بدون دخول ⇒ نكتفي بفحص أن الشاشة الظاهرة هي نوع الحساب
-  check('2) بعد الخروج لا يمكن الوصول للرئيسية/السلة بدون دخول (شاشة نوع الحساب)', (await btn(/تاجر \(صاحب متجر\)/, false).count()) === 1 && (await phone().getByLabel('السلة').count()) === 0)
+  // بعد الخروج: زائر في الرئيسية — الإضافة للسلة تفتح نافذة المطالبة ولا تضيف
+  await phone().getByRole('button', { name: /أضف للسلة/ }).first().click(); await T(400)
+  check('2→RC-9) بعد الخروج: الإضافة للسلة كزائر تفتح نافذة المطالبة (دخول / إنشاء حساب عميل) ولا تضيف', (await has('سجّل الدخول لإضافة المنتج إلى السلة')) && (await btn('إنشاء حساب كعميل').count()) === 1 && (await phone().getByLabel('السلة').innerText()).trim() === '')
   await page.close()
 }
 
@@ -161,7 +163,7 @@ async function login(c) {
   const c = await fresh(); const { phone, nav, has, btn, page, demo } = c
   await demo(/محاكاة: متجر محظور/).click(); await T(600)
   await btn('تسجيل الخروج').click(); await T(500)
-  check('6) تسجيل الخروج من شاشة الحظر يعمل (→ نوع الحساب)', (await btn(/متسوق \(مشتري\)/, false).count()) === 1)
+  check('6) تسجيل الخروج من شاشة الحظر يعمل (→ الرئيسية كزائر)', (await has('الأقسام والتصنيفات')) && (await nav().count()) === 1)
   await page.close()
 }
 {

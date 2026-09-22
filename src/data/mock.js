@@ -297,6 +297,15 @@ export const PRODUCTS = [
   },
 ]
 
+// عروض/إعلانات الشاشة الرئيسية — أكثر من إعلان في شريط تمرير (Carousel)؛ الأول هو الإعلان الأصلي
+// action: { type: 'category', id } يفلتر الرئيسية · { type: 'store', id } يفتح المتجر · { type: 'tab', tab } يبدّل التبويب
+export const PROMOS = [
+  { id: 'pr-delivery', badge: `جديد في ${CITY}`, title: 'توصيل مجاني داخل المدينة', text: 'من متاجر معتمدة — الأجهزة الإلكترونية والساعات وأكثر', cta: 'تسوق الآن', tone: 'secondary', action: { type: 'category', id: 'electronics' } },
+  { id: 'pr-coffee', badge: 'عرض الأسبوع', title: 'بن يمني أصلي يصلك طازجاً', text: 'عالم الباريستا المنزلي — تحميص طازج وتوصيل خلال 15-25 دقيقة', cta: 'زيارة المتجر', tone: 'primary', action: { type: 'store', id: 'st-barista' } },
+  { id: 'pr-perfume', badge: 'وصل حديثاً', title: 'عطور شرقية فاخرة', text: 'عود ومسك وعنبر من عطور الجزيرة الملكية — أصلية ومضمونة من التاجر', cta: 'اكتشف العطور', tone: 'dark', action: { type: 'category', id: 'beauty' } },
+  { id: 'pr-stores', badge: 'متاجر معتمدة', title: 'تسوق من أقرب المتاجر إليك', text: 'كل المتاجر موثّقة وتُعرض حسب المسافة من موقعك', cta: 'كل المتاجر', tone: 'secondary', action: { type: 'tab', tab: 'nearbyStores' } },
+]
+
 export const TRENDING_SEARCHES = ['بن يمني معطر', 'غسل دوعني', 'سماعات بلوتوث', 'عطور شرقية', 'أدوات منزلية']
 
 export const AREAS = ['الكل', 'شارع جمال', 'المسبح', 'التحرير', 'بير باشا', 'حوض الأشراف', 'الحوبان'] // الحوبان بلا متاجر بعد → حالة CUS-018

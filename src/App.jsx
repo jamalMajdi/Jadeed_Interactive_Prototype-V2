@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './store/AppContext'
-import { Toast, Logo, OfflineBanner } from './components/ui'
+import { Toast, Logo, OfflineBanner, AuthPrompt } from './components/ui'
 import { Splash, Onboarding, AccountType, Login, OtpSent, OtpVerify, OtpLocked, LoginSuccess, Register, RegisterSuccess, RegisterFailed, ForgotPassword } from './screens/Onboarding'
 import { LocationPermission, LocationSuccess, LocationDenied, Addresses, MapPinScreen, Home, NearbyStores, StoreScreen, ProductScreen, SearchScreen, FiltersScreen, Favorites } from './screens/Shopping'
 import { CartScreen, Checkout, OrderSuccess, OrderFailed, OutOfStock, Orders, OrderDetails, OrderCancelled, Tracking } from './screens/Cart'
@@ -109,6 +109,7 @@ function PhoneFrame({ children }) {
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[120px] h-[34px] rounded-full bg-ink-900 z-[60] pointer-events-none" />
         <div className="absolute inset-0 overflow-hidden">{children}</div>
         <OfflineBanner />
+        <AuthPrompt />
         <Toast />
       </div>
     </div>

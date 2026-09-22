@@ -28,7 +28,7 @@ async function login(ctx) {
 {
   const c = await fresh(); const { phone, nav, has, btn, page } = c
   await btn('تخطي').click(); await T(400)                     // onboarding slides skip → accountType
-  check('9→RC-8) شاشة نوع الحساب بلا «تخطي» ولا «تصفح كزائر» وبنوعين فقط', (await btn('تخطي').count()) === 0 && (await btn(/تصفح كزائر/, false).count()) === 0 && (await btn(/كلاهما/, false).count()) === 0 && (await btn(/متسوق \(مشتري\)/, false).count()) === 1 && (await btn(/تاجر \(صاحب متجر\)/, false).count()) === 1)
+  check('9→RC-9) شاشة نوع الحساب: نوعان فقط + «تصفح كزائر بدون تسجيل» (التصفح متاح، الإضافة للسلة تتطلب دخولاً)', (await btn('تخطي').count()) === 0 && (await btn('تصفح كزائر بدون تسجيل').count()) === 1 && (await btn(/كلاهما/, false).count()) === 0 && (await btn(/متسوق \(مشتري\)/, false).count()) === 1 && (await btn(/تاجر \(صاحب متجر\)/, false).count()) === 1)
   await btn(/متسوق \(مشتري\)/, false).click(); await btn('متابعة').click(); await T(500)
   check('9→RC-8) شاشة الدخول بلا رابط «تصفح كزائر»', (await btn(/تصفح كزائر/, false).count()) === 0)
   await login(c)

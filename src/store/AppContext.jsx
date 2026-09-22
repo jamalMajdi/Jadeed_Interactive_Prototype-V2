@@ -25,6 +25,7 @@ export const OTP_MAX_ATTEMPTS = 3
 export const DEMO_OTP = '1234'
 
 const initialState = {
+  authPrompt: null, // { productName, returnTo } — نافذة مطالبة الزائر بالدخول/إنشاء حساب عند الإضافة للسلة
   // التنقل: مكدس شاشات يسمح بالرجوع
   stack: [{ name: 'splash' }],
   // المصادقة
@@ -83,6 +84,7 @@ function reducer(state, action) {
       return {
         ...state,
         auth: { ...state.auth, status: 'authenticated', otpAttempts: 0, lockedUntil: null },
+        authPrompt: null,
         // الحظر لا يُرفع بإعادة تسجيل الدخول (يبقى حتى تقرر الإدارة)
         merchantStatus: isMerchantAccount ? (state.merchantStatus === 'banned' ? 'banned' : 'approved') : state.merchantStatus,
       }
@@ -92,8 +94,12 @@ function reducer(state, action) {
     case 'CLEAR_RETURN_TO':
       return { ...state, auth: { ...state.auth, returnTo: null } }
     case 'LOGOUT':
-      // لا يوجد تصفح كزائر: بعد الخروج يعود المستخدم إلى اختيار نوع الحساب وتسجيل الدخول
-      return { ...initialState, stack: [{ name: 'accountType' }], orders: state.orders }
+      // الخروج لا يجبر على الدخول مجدداً: يعود المستخدم للتصفح كزائر (التصفح متاح، والإضافة للسلة تتطلب حساب عميل)
+      return { ...initialState, stack: [{ name: 'home' }], orders: state.orders }
+    case 'AUTH_PROMPT': // مطالبة الزائر بتسجيل الدخول أو إنشاء حساب عميل (نافذة واضحة بدل تحويل صامت)
+      return { ...state, authPrompt: action.prompt }
+    case 'AUTH_PROMPT_CLOSE':
+      return { ...state, authPrompt: null }
 
     // ── السلة ─────────────────────────────────────────────────
     case 'ADD_TO_CART': {
@@ -323,6 +329,15 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
     [showToast],
   )
 
+  // الإضافة للسلة تتطلب حساب عميل: الزائر يتصفح بحرية، وعند محاولة الإضافة تظهر له نافذة واضحة
+  // بخياري «تسجيل الدخول» و«إنشاء حساب كعميل» مع حفظ الشاشة الحالية للعودة إليها بعد الدخول
+  const requireCustomer = useCallback((productName) => {
+    if (stateRef.current.auth.status === 'authenticated') return true
+    const stack = stateRef.current.stack
+    dispatch({ type: 'AUTH_PROMPT', prompt: { productName, returnTo: stack[stack.length - 1] } })
+    return false
+  }, [])
+
   const cartSummary = useMemo(() => computeCart(state.cart, state.coupon), [state.cart, state.coupon, state.catalogVersion])
 
   // محاكاة تقدم الطلب تلقائيًا (كأن التاجر يعالجه) — يمكن للتاجر تسريعه يدويًا من لوحته
@@ -358,6 +373,7 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       isMerchant: state.merchantStatus === 'approved',
       isBanned: state.merchantStatus === 'banned',
       requireAuth,
+      requireCustomer,
       isFavorite: (id) => state.favorites.has(id),
       toast,
       showToast,
@@ -365,7 +381,7 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       currentAddress: state.addresses.find((a) => a.id === state.addressId) || state.addresses[0],
       merchantStore: storeById(MERCHANT.storeId), // متجر التاجر الوحيد
     }),
-    [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth],
+    [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth, requireCustomer],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

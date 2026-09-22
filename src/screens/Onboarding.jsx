@@ -118,13 +118,17 @@ const TYPES = [
 // نوع الحساب واحد فقط (عميل أو تاجر) — لا يمكن تسجيل المستخدم نفسه بالنوعين معاً
 
 export function AccountType() {
-  const { navigate, dispatch, state } = useApp()
+  const { navigate, dispatch, state, switchTab } = useApp()
   const [sel, setSel] = useState(TYPES.some((t) => t.key === state.auth.accountType) ? state.auth.accountType : 'customer')
   const go = () => {
     dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: sel })
     navigate('login', {}, { resetTo: true })
   }
-  // لا يوجد تصفح كزائر: يجب تسجيل الدخول بنوع حساب واحد للمتابعة
+  // الزائر يستطيع تصفح المنتجات والمتاجر والعروض بلا تسجيل؛ الإضافة للسلة تتطلب حساب عميل (نافذة مطالبة عند المحاولة)
+  const browseAsGuest = () => {
+    dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'customer' })
+    switchTab('home')
+  }
   return (
     <div className="flex-1 flex flex-col bg-white">
       <StatusBar />
@@ -154,6 +158,8 @@ export function AccountType() {
       <div className="flex-1" />
       <div className="px-6 pb-4">
         <button onClick={go} className="w-full btn-primary btn-lg">متابعة</button>
+        <button onClick={browseAsGuest} className="w-full h-10 mt-2 text-[12px] font-bold text-ink-500">تصفح كزائر بدون تسجيل</button>
+        <p className="text-center text-[10px] text-ink-400 mt-0.5">التصفح متاح للجميع — الإضافة للسلة والشراء يتطلبان حساب عميل</p>
       </div>
       <HomeIndicator />
     </div>
@@ -635,8 +641,16 @@ export function Register() {
 }
 
 export function RegisterSuccess() {
-  const { navigate, current } = useApp()
+  const { navigate, current, state, dispatch } = useApp()
   const name = current.params?.name || USER.name
+  const returnTo = state.auth.returnTo // سجّل من نافذة المطالبة أثناء التصفح → يعود إلى المنتج/المتجر نفسه
+  const proceed = () => {
+    if (returnTo?.name) {
+      dispatch({ type: 'CLEAR_RETURN_TO' })
+      return navigate(returnTo.name, returnTo.params || {}, { resetTo: true })
+    }
+    navigate('locationPermission', {}, { resetTo: true })
+  }
   return (
     <StateScreen
       tone="info"
@@ -644,7 +658,7 @@ export function RegisterSuccess() {
       showBack={false}
       title="تم حفظ بيانات الحساب بنجاح!"
       description="أهلاً بك في منصة جديد للتسوق الذكي في محافظة تعز."
-      primary={{ label: 'تحديد موقع التوصيل الأول', onClick: () => navigate('locationPermission', {}, { resetTo: true }) }}
+      primary={{ label: returnTo?.name ? 'المتابعة إلى حيث توقفت' : 'تحديد موقع التوصيل الأول', onClick: proceed }}
     >
       <KeyValue rows={[['الاسم:', name], ['المدينة:', 'تعز'], ['الحي:', 'شارع جمال']]} />
     </StateScreen>
