@@ -118,7 +118,7 @@ export function ComponentsShowcase() {
                 <TopBar light title="مركز التنبيهات" subtitle="آخر التحديثات والعروض لطلبك" onBack={() => showToast('رجوع')} />
               </div>
             </Section>
-            <Section title="الشعار الرسمي (Official Logo)" note="مصدر واحد: public/assets/logo.png (الاسم العربي + JADEED + العلامة) — ارتفاع ثابت + عرض تلقائي + object-fit: contain (لا قصّ ولا تمطيط)">
+            <Section title="الشعار الرسمي (Official Logo)" note="مصدر واحد: public/assets/logoo.png (الاسم العربي + JADEED + العلامة) — ارتفاع ثابت + عرض تلقائي + object-fit: contain (لا قصّ ولا تمطيط)">
               <div className="flex flex-col items-center gap-4">
                 <div className="flex flex-col items-center gap-1"><Logo size={72} /><span className="text-[10px] text-ink-500 font-bold">72px</span></div>
                 <div className="flex items-end gap-5 flex-wrap justify-center">
@@ -160,7 +160,7 @@ export function ComponentsShowcase() {
                 <Chip tone="solidSecondary">صلب ثانوي</Chip>
               </div>
               <div className="flex flex-wrap gap-2">
-                {['new', 'preparing', 'out', 'delivered', 'cancelled', 'rejected'].map((s) => <StageChip key={s} stage={s} />)}
+                {['new', 'out', 'delivered', 'cancelled', 'rejected'].map((s) => <StageChip key={s} stage={s} />)}
               </div>
               <div className="flex flex-wrap gap-2 items-center">
                 <VerifiedBadge /> <Rating value={4.9} count={312} />

@@ -1,7 +1,7 @@
 // فحص آلي لمعرض الشاشات: لا شاشة فارغة، لا أخطاء كونسول، الشريط السفلي داخل الإطار، لا جذور أطول من 844، لا أكواد Figma داخل الهاتف
 // التشغيل: node scripts/qa-gallery.mjs  (يتطلب تشغيل السيرفر على 5173 و playwright متاحاً عبر PLAYWRIGHT_PATH أو npx)
 import fs from 'fs'
-const PW = process.env.PLAYWRIGHT_PATH || '/home/user/.npm/_npx/f0a362733743bae2/node_modules/playwright/index.mjs'
+const PW = process.env.PLAYWRIGHT_PATH || '/home/user/jadeed-app/node_modules/playwright/index.mjs'
 const { chromium } = await import(PW)
 const src = fs.readFileSync(new URL('../src/gallery/catalog.js', import.meta.url), 'utf8')
 const keys = [...src.matchAll(/key: '([^']+)'/g)].map(m => m[1])

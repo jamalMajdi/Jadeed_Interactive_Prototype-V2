@@ -5,8 +5,8 @@
 // ─────────────────────────────────────────────────────────────
 import { PRODUCTS, SEED_ORDERS, makeSampleOrder } from '../data/mock'
 
-const AUTH_OK = { status: 'authenticated', accountType: 'customer', email: 'customer@jadeed.ye', otpAttempts: 0, lockedUntil: null }
-const AUTH_GUEST = { status: 'guest', accountType: 'customer', email: 'customer@jadeed.ye', otpAttempts: 0, lockedUntil: null }
+const AUTH_OK = { status: 'authenticated', accountType: 'customer', email: 'customer@jadeed.ye', returnTo: null }
+const AUTH_GUEST = { status: 'guest', accountType: 'customer', email: 'customer@jadeed.ye', returnTo: null }
 const AUTH_MERCHANT = { ...AUTH_OK, accountType: 'merchant', email: 'merchant@jadeed.ye' }
 const MERCHANT_STATE = { auth: AUTH_MERCHANT, merchantStatus: 'approved' }
 // سلة من متجرين (سماعات ×1 من التكنولوجيا + بن ×2 من الباريستا) لعرض الفصل حسب المتجر
@@ -36,21 +36,19 @@ export const GALLERY = [
   {
     id: 'auth',
     title: 'التسجيل والمصادقة',
-    desc: 'الدخول، رمز التحقق OTP (4 أرقام)، إنشاء الحساب وحالاته',
+    desc: 'الدخول بالبريد + كلمة مرور، رابط التحقق (بدون OTP)، إنشاء الحساب',
     items: [
       { key: 'login', title: 'تسجيل الدخول بالبريد الإلكتروني', code: 'CUS-001', screen: 'login', state: { auth: AUTH_GUEST }, figma: '11:245' },
       { key: 'login-invalid', title: 'تنبيه: البريد غير صالح', code: 'CUS-002', screen: 'login', params: { preset: 'invalid' }, state: { auth: AUTH_GUEST }, figma: '11:380' },
-      { key: 'otp-sent', title: 'تم إرسال رمز التحقق', code: 'CUS-004', screen: 'otpSent', state: { auth: AUTH_GUEST }, figma: '11:336' },
-      { key: 'otp', title: 'التحقق من رمز OTP (4 خانات)', screen: 'otp', state: { auth: AUTH_GUEST }, stack: ['login'], note: 'الرمز الصحيح 1234', figma: '11:295' },
-      { key: 'otp-wrong', title: 'رمز التحقق غير صحيح', code: 'CUS-005', screen: 'otp', params: { preset: 'wrong' }, state: { auth: { ...AUTH_GUEST, otpAttempts: 1 } }, stack: ['login'], figma: '11:430' },
-      { key: 'otp-expired', title: 'انتهت صلاحية رمز التحقق — إعادة الإرسال', screen: 'otp', params: { preset: 'expired' }, state: { auth: AUTH_GUEST }, stack: ['login'], note: 'جديد (غير موجود في Figma): حالة انتهاء الرمز + زر إعادة الإرسال', figma: '—' },
-      { key: 'otp-locked', title: 'تجاوز محاولات التحقق', code: 'CUS-006', screen: 'otpLocked', state: { auth: { ...AUTH_GUEST, otpAttempts: 3, lockedUntil: Date.now() + 9e5 } }, figma: '11:485' },
-      { key: 'login-success', title: 'نجاح تسجيل الدخول', code: 'CUS-007', screen: 'loginSuccess', figma: '11:528' },
+      { key: 'verify-link-sent', title: 'تم إرسال رابط التحقق', code: 'CUS-004', screen: 'verifyLinkSent', params: { email: 'customer@jadeed.ye', name: 'محمد سعيد أحمد علي' }, state: { auth: AUTH_GUEST }, figma: '11:336' },
+      { key: 'verify-link-reset', title: 'تم إرسال رابط استعادة كلمة المرور', screen: 'verifyLinkSent', params: { email: 'customer@jadeed.ye', purpose: 'reset' }, state: { auth: AUTH_GUEST }, stack: ['login'], figma: '—' },
+      { key: 'login-success', title: 'أهلاً بك مجدداً (Toast فوق الشاشة السابقة)', code: 'CUS-007', screen: 'loginSuccess', figma: '11:528' },
       { key: 'register', title: 'إنشاء حساب جديد', code: 'CUS-008', screen: 'register', state: { auth: AUTH_GUEST }, stack: ['login'], figma: '11:577' },
       { key: 'register-errors', title: 'إنشاء حساب — أخطاء التحقق من الحقول', code: 'CUS-008', screen: 'register', params: { preset: 'errors' }, state: { auth: AUTH_GUEST }, stack: ['login'], figma: '11:577' },
-      { key: 'register-success', title: 'تم إنشاء الحساب بنجاح', code: 'CUS-009', screen: 'registerSuccess', params: { name: 'محمد سعيد' }, figma: '11:655' },
+      { key: 'register-success', title: 'تم إنشاء الحساب بنجاح', code: 'CUS-009', screen: 'registerSuccess', params: { name: 'محمد سعيد أحمد علي' }, figma: '11:655' },
       { key: 'register-failed', title: 'فشل حفظ الحساب', code: 'CUS-010', screen: 'registerFailed', stack: ['register'], figma: '11:701' },
-      { key: 'forgot-password', title: 'استعادة الحساب — نسيت بيانات الدخول', screen: 'forgotPassword', stack: ['login'], note: 'جديد (غير موجود في Figma) — الدخول بـ OTP لذا الاستعادة عبر قناة بديلة', figma: '—' },
+      { key: 'forgot-password', title: 'استعادة كلمة المرور عبر البريد', screen: 'forgotPassword', stack: ['login'], note: 'البريد فقط → رابط الاستعادة → تعيين كلمة مرور جديدة (بدون OTP)', figma: '—' },
+      { key: 'reset-password', title: 'تعيين كلمة مرور جديدة (بعد فتح رابط الاستعادة)', screen: 'resetPassword', params: { email: 'customer@jadeed.ye' }, state: { auth: AUTH_GUEST }, stack: ['login'], figma: '—' },
       { key: 'login-gated', title: 'تسجيل الدخول — مطلوب لإكمال إجراء (جلسة منتهية)', screen: 'login', params: { gated: true }, state: { auth: AUTH_GUEST }, stack: ['home'], note: 'يظهر عند محاولة مستخدم غير مسجّل الإضافة للسلة أو استخدام المفضلة/الطلبات/الدفع', figma: '—' },
     ],
   },
@@ -105,12 +103,12 @@ export const GALLERY = [
       { key: 'order-success', title: 'تم إنشاء الطلب بنجاح', code: 'CUS-031', screen: 'orderSuccess', params: { orderId: 'JD-984210' }, state: { orders: ORDER('new') }, figma: '11:2270' },
       { key: 'order-failed', title: 'فشل إتمام الطلب', code: 'CUS-032', screen: 'orderFailed', stack: ['home', 'checkout'], figma: '69:509', figmaAlt: '69:740' },
       { key: 'tracking', title: 'تتبع الشحنة المباشر (خرج للتوصيل)', code: 'CUS-033', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('out') }, stack: ['orders'], figma: '11:2392' },
-      { key: 'tracking-preparing', title: 'حالة الطلب الحالية (قيد التحضير)', code: 'CUS-039', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('preparing') }, stack: ['orders'], figma: '13:3991' },
+      { key: 'tracking-out', title: 'حالة الطلب الحالية (قيد التوصيل)', code: 'CUS-039', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, stack: ['orders'], figma: '13:3991' },
       { key: 'delivered', title: 'تم تسليم الطلب بنجاح', code: 'CUS-035', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('delivered') }, stack: ['orders'], figma: '11:2652' },
-      { key: 'orders', title: 'سجل طلباتي', code: 'CUS-036', screen: 'orders', state: { orders: ORDER('preparing') }, figma: '11:2543' },
+      { key: 'orders', title: 'سجل طلباتي', code: 'CUS-036', screen: 'orders', state: { orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, figma: '11:2543' },
       { key: 'orders-empty', title: 'لا توجد طلبات سابقة', code: 'CUS-037', screen: 'orders', state: { orders: [] }, figma: '11:2711' },
-      { key: 'order-details', title: 'تفاصيل الفاتورة والطلب الكاملة', code: 'CUS-038', screen: 'orderDetails', params: { orderId: 'JD-984210' }, state: { orders: ORDER('preparing') }, stack: ['orders'], figma: '13:4061' },
-      { key: 'order-cancelled-by-merchant', title: 'ألغى المتجر الطلب بعد قبوله — منظور العميل', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('cancelled', { cancelledBy: 'merchant', cancelReason: 'نفدت الكمية من المخزون', cancelledFrom: 'preparing' }) }, stack: ['orders'], note: 'جديد: أثر إلغاء التاجر يظهر للعميل بحالة وسبب واضحين', figma: '—' },
+      { key: 'order-details', title: 'تفاصيل الفاتورة والطلب الكاملة', code: 'CUS-038', screen: 'orderDetails', params: { orderId: 'JD-984210' }, state: { orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, stack: ['orders'], figma: '13:4061' },
+      { key: 'order-cancelled-by-merchant', title: 'ألغى المتجر الطلب بعد قبوله — منظور العميل', screen: 'tracking', params: { orderId: 'JD-984210' }, state: { orders: ORDER('cancelled', { cancelledBy: 'merchant', cancelReason: 'نفدت الكمية من المخزون', cancelledFrom: 'out' }) }, stack: ['orders'], note: 'جديد: أثر إلغاء التاجر يظهر للعميل بحالة وسبب واضحين', figma: '—' },
       { key: 'order-cancelled', title: 'تم إلغاء الطلب', code: 'CUS-034', screen: 'orderCancelled', params: { orderId: 'JD-984210' }, state: { orders: ORDER('cancelled') }, figma: '11:2504' },
     ],
   },
@@ -162,18 +160,16 @@ export const GALLERY = [
       { key: 'm-product-saved', title: 'تم تعديل المنتج بنجاح', code: 'M-056', state: MERCHANT_STATE, screen: 'm-product-saved', params: { id: 'p-headphones', tab: 'm-products' }, stack: ['m-products'], figma: '63:101' },
       { key: 'm-product-delete', title: 'تأكيد حذف المنتج', code: 'M-057', state: MERCHANT_STATE, screen: 'm-products', params: { preset: 'confirm' }, figma: '13:5263' },
       { key: 'm-product-deleted', title: 'تم حذف المنتج', code: 'M-058', state: MERCHANT_STATE, screen: 'm-product-deleted', params: { name: 'كاميرا مراقبة ذكية', tab: 'm-products' }, stack: ['m-products'], figma: '13:5460' },
-      { key: 'm-orders', title: 'الطلبات الواردة للمتجر — أقسام: جديدة / قيد التنفيذ / منتهية', code: 'M-060', screen: 'm-orders', state: { ...MERCHANT_STATE, orders: [makeSampleOrder('new'), makeSampleOrder('preparing', { id: 'JD-984211' }), ...SEED_ORDERS] }, figma: '13:5345' },
+      { key: 'm-orders', title: 'الطلبات الواردة للمتجر — أقسام: جديدة / قيد التوصيل / منتهية', code: 'M-060', screen: 'm-orders', state: { ...MERCHANT_STATE, orders: [makeSampleOrder('new'), makeSampleOrder('out', { id: 'JD-984211', acceptedAt: Date.now() - 1000 }), ...SEED_ORDERS] }, figma: '13:5345' },
       { key: 'm-orders-empty', title: 'لا توجد طلبات واردة', code: 'M-061', screen: 'm-orders', state: { ...MERCHANT_STATE, orders: [] }, figma: '13:5525' },
       { key: 'm-order-decision', title: 'قرار قبول أو رفض الطلب', code: 'M-063', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('new') }, stack: ['m-orders'], figma: '13:5685' },
-      { key: 'm-order-transfer', title: 'تأكيد استلام التحويل وبدء التجهيز (إيصال مرفق)', state: { ...MERCHANT_STATE, orders: TRANSFER_ORDER('new') }, screen: 'm-order', params: { orderId: 'JD-984210' }, stack: ['m-orders'], note: 'زر واحد يثبت الدفع وينقل الطلب إلى التجهيز', figma: '—' },
-      { key: 'm-order-accepted', title: 'تم قبول الطلب وبدء التجهيز', code: 'M-064', screen: 'm-order-accepted', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5607' },
-      { key: 'm-order-processing', title: 'معالجة وتحديث حالة الطلب', code: 'M-062', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5815' },
-      { key: 'm-order-preparing', title: 'مرحلة: قيد التجهيز', code: 'M-066', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5869' },
-      { key: 'm-order-ready', title: 'مرحلة: جاهز للتسليم للمندوب (مدمجة ضمن قيد التجهيز)', code: 'M-067', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], figma: '13:5914' },
+      { key: 'm-order-transfer', title: 'تأكيد استلام التحويل وبدء التوصيل (إيصال مرفق)', state: { ...MERCHANT_STATE, orders: TRANSFER_ORDER('new') }, screen: 'm-order', params: { orderId: 'JD-984210' }, stack: ['m-orders'], note: 'زر واحد يثبت الدفع وينقل الطلب إلى قيد التوصيل', figma: '—' },
+      { key: 'm-order-accepted', title: 'تم قبول الطلب وبدء التوصيل', code: 'M-064', screen: 'm-order-accepted', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { ...MERCHANT_STATE, orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, stack: ['m-orders'], figma: '13:5607' },
+      { key: 'm-order-processing', title: 'معالجة وتحديث حالة الطلب', code: 'M-062', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, stack: ['m-orders'], figma: '13:5815' },
       { key: 'm-order-out', title: 'مرحلة: في الطريق', code: 'M-068', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('out') }, stack: ['m-orders'], figma: '13:5951' },
       { key: 'm-order-delivered', title: 'تم التوصيل بنجاح', code: 'M-069', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('delivered') }, stack: ['m-orders'], figma: '13:6001' },
-      { key: 'm-order-cancel-after-accept', title: 'إلغاء التاجر للطلب بعد قبوله (قيد التجهيز)', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('preparing') }, stack: ['m-orders'], note: 'جديد: زر «إلغاء الطلب (بعد القبول)» يفتح نافذة سبب الإلغاء', figma: '—' },
-      { key: 'm-order-cancelled', title: 'طلب ألغاه التاجر — منظور التاجر', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('cancelled', { cancelledBy: 'merchant', cancelReason: 'نفدت الكمية من المخزون', cancelledFrom: 'preparing' }) }, stack: ['m-orders'], figma: '—' },
+      { key: 'm-order-cancel-after-accept', title: 'إلغاء التاجر للطلب بعد قبوله (قيد التجهيز)', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('out', { acceptedAt: Date.now() - 1000 }) }, stack: ['m-orders'], note: 'جديد: زر «إلغاء الطلب (بعد القبول)» يفتح نافذة سبب الإلغاء', figma: '—' },
+      { key: 'm-order-cancelled', title: 'طلب ألغاه التاجر — منظور التاجر', screen: 'm-order', params: { orderId: 'JD-984210' }, state: { ...MERCHANT_STATE, orders: ORDER('cancelled', { cancelledBy: 'merchant', cancelReason: 'نفدت الكمية من المخزون', cancelledFrom: 'out' }) }, stack: ['m-orders'], figma: '—' },
       { key: 'm-order-rejected', title: 'تم رفض الطلب', code: 'M-065', screen: 'm-order-rejected', params: { orderId: 'JD-984210', tab: 'm-orders' }, state: { ...MERCHANT_STATE, orders: ORDER('rejected') }, stack: ['m-orders'], figma: '13:5742' },
       { key: 'm-stats', title: 'إحصائيات وأداء المبيعات', code: 'M-070', state: MERCHANT_STATE, screen: 'm-stats', figma: '13:6170' },
       { key: 'm-stats-empty', title: 'الإحصائيات غير متوفرة', code: 'M-071', screen: 'm-stats', state: { ...MERCHANT_STATE, orders: [], merchantProducts: [] }, figma: '13:6276' },

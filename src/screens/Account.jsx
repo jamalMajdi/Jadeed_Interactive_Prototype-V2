@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ChevronLeft, MapPin, ReceiptText, Heart, Bell, Shield, HelpCircle, Store, LogOut, Truck, Tag, Wallet, ShieldCheck, LayoutDashboard, LogIn, UserPlus, FileText, Lock, Landmark, Phone, Package, BadgeCheck, UserRound, ShoppingBag, Clock, Ban } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { StatusBar, HomeIndicator, BottomNav, TopBar } from '../components/ui'
+import { StatusBar, HomeIndicator, BottomNav, TopBar, Modal } from '../components/ui'
 import { NOTIFICATIONS, USER, fmt, CURRENCY } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
@@ -15,41 +15,64 @@ export function Account() {
   const accountType = state.auth.accountType
   const store = isMerchant ? merchantStore : null
 
-  // ── الزائر: شاشة مناسبة بدل قائمة الحساب — دخول / إنشاء حساب مع بقاء التصفح متاحاً ──
+  // ── الزائر: تصفح كزائر — زر دخول/إنشاء حساب + كل الخيارات ظاهرة (الإضافة للسلة والطلبات تتطلب حساباً)
   if (guest) {
+    const guestItems = [
+      { Icon: MapPin, label: 'موقع التوصيل', to: 'addresses' },
+      { Icon: ReceiptText, label: 'سجل الطلبات', tab: 'orders', gated: true },
+      { Icon: Heart, label: 'قائمة المفضلة', tab: 'favorites', gated: true },
+      { Icon: HelpCircle, label: 'المساعدة والدعم الفني', to: 'support' },
+    ]
+    const guestLegal = [
+      { Icon: FileText, label: 'شروط الاستخدام', to: 'legal', params: { doc: 'terms' } },
+      { Icon: Lock, label: 'سياسة الخصوصية', to: 'legal', params: { doc: 'privacy' } },
+    ]
+    const handleGuestNav = (it) => {
+      if (it.gated) {
+        dispatch({ type: 'AUTH_GATE', returnTo: { name: it.tab } })
+        navigate('login', { gated: true })
+      } else if (it.tab) switchTab(it.tab)
+      else navigate(it.to, it.params)
+    }
     return (
       <div className="flex-1 flex flex-col bg-ink-50 relative">
         <StatusBar />
         <div className="bg-white border-b border-ink-100 px-4 pb-3">
           <h1 className="text-[18px] font-extrabold text-ink-900">حسابي</h1>
-          <p className="text-[11px] text-ink-500 font-medium">أنت تتصفح كزائر — سجّل الدخول كعميل لإضافة المنتجات إلى السلة وإتمام الشراء</p>
+          <p className="text-[11px] text-ink-500 font-medium">أنت تتصفح كزائر — سجّل الدخول للاستفادة من السلة والطلبات والمفضلة</p>
         </div>
-        <div className="flex-1 overflow-y-auto scroll-thin px-5 py-6 pb-28">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-24 h-24 rounded-3xl bg-primary-50 text-primary flex items-center justify-center mb-5"><UserRound size={44} strokeWidth={1.6} /></div>
-            <h2 className="text-[20px] font-extrabold text-ink-900">سجّل الدخول إلى جديد</h2>
-            <p className="text-[12px] text-ink-500 mt-2 leading-relaxed max-w-[300px]">احفظ منتجاتك المفضلة، تابع طلباتك لحظة بلحظة، وأتمم مشترياتك بأمان من متاجر {USER.city} المعتمدة.</p>
-          </div>
-          <div className="space-y-2.5 mt-6">
-            <button onClick={() => navigate('login')} className="w-full btn-primary btn-lg"><LogIn size={18} /> تسجيل الدخول</button>
-            <button onClick={() => navigate('register')} className="w-full btn-outline btn-lg"><UserPlus size={18} /> إنشاء حساب جديد</button>
-          </div>
-          <div className="card mt-6 divide-y divide-ink-100">
-            {[
-              { Icon: Heart, label: 'حفظ المنتجات في المفضلة' },
-              { Icon: ReceiptText, label: 'متابعة الطلبات وتتبع التوصيل' },
-              { Icon: Store, label: 'فتح متجرك الخاص كتاجر' },
-            ].map(({ Icon, label }) => (
-              <div key={label} className="flex items-center gap-3 px-4 h-[48px]">
-                <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary flex items-center justify-center"><Icon size={17} /></div>
-                <span className="text-[12px] font-bold text-ink-700">{label}</span>
+        <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 pb-28 space-y-3">
+          <div className="card p-4 bg-gradient-to-l from-primary-50 to-white border-primary-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shrink-0"><UserRound size={22} /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-extrabold text-ink-900">مرحباً بك في جديد</p>
+                <p className="text-[11px] text-ink-500 leading-relaxed">سجّل الدخول أو أنشئ حساباً كعميل للشراء والمتابعة</p>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button onClick={() => navigate('login')} className="btn-primary btn-sm"><LogIn size={15} /> تسجيل الدخول</button>
+              <button onClick={() => navigate('register')} className="btn-outline btn-sm"><UserPlus size={15} /> إنشاء حساب</button>
+            </div>
+          </div>
+          <div className="card divide-y divide-ink-100">
+            {guestItems.map(({ Icon, label, gated }) => (
+              <button key={label} onClick={() => handleGuestNav({ label, ...guestItems.find((x) => x.label === label) })} className="w-full flex items-center gap-3 px-4 h-[52px] text-right hover:bg-ink-50 transition">
+                <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary flex items-center justify-center"><Icon size={18} strokeWidth={2} /></div>
+                <span className="flex-1 text-[13px] font-bold text-ink-800">{label}</span>
+                {gated && <span className="text-[10px] font-bold text-secondary bg-secondary-50 rounded-full px-2 h-5 flex items-center">يتطلب دخولاً</span>}
+                <ChevronLeft size={16} className="text-ink-300" />
+              </button>
             ))}
           </div>
-          <div className="card mt-3 divide-y divide-ink-100">
-            <button onClick={() => navigate('support')} className="w-full flex items-center gap-3 px-4 h-[48px] text-right"><HelpCircle size={17} className="text-ink-500" /><span className="flex-1 text-[12px] font-bold text-ink-800">المساعدة والدعم الفني</span><ChevronLeft size={16} className="text-ink-300" /></button>
-            <button onClick={() => navigate('legal', { doc: 'terms' })} className="w-full flex items-center gap-3 px-4 h-[48px] text-right"><FileText size={17} className="text-ink-500" /><span className="flex-1 text-[12px] font-bold text-ink-800">شروط الاستخدام</span><ChevronLeft size={16} className="text-ink-300" /></button>
-            <button onClick={() => navigate('legal', { doc: 'privacy' })} className="w-full flex items-center gap-3 px-4 h-[48px] text-right"><Lock size={17} className="text-ink-500" /><span className="flex-1 text-[12px] font-bold text-ink-800">سياسة الخصوصية</span><ChevronLeft size={16} className="text-ink-300" /></button>
+          <div className="card divide-y divide-ink-100">
+            {guestLegal.map(({ Icon, label, to, params }) => (
+              <button key={label} onClick={() => navigate(to, params)} className="w-full flex items-center gap-3 px-4 h-[48px] text-right hover:bg-ink-50 transition">
+                <div className="w-9 h-9 rounded-xl bg-ink-100 text-ink-500 flex items-center justify-center"><Icon size={17} /></div>
+                <span className="flex-1 text-[12px] font-bold text-ink-700">{label}</span>
+                <ChevronLeft size={16} className="text-ink-300" />
+              </button>
+            ))}
           </div>
         </div>
         <BottomNav />
@@ -66,7 +89,6 @@ export function Account() {
   const legal = [
     { Icon: FileText, label: 'شروط الاستخدام', to: 'legal', params: { doc: 'terms' } },
     { Icon: Lock, label: 'سياسة الخصوصية', to: 'legal', params: { doc: 'privacy' } },
-    { Icon: Shield, label: 'بوابة إدارة المنصة (Admin Web)', to: 'adminLogin' },
   ]
   return (
     <div className="flex-1 flex flex-col bg-ink-50 relative">
@@ -174,14 +196,32 @@ export function Account() {
           ))}
         </div>
 
-        <button onClick={() => dispatch({ type: 'LOGOUT' })} className="w-full card px-4 h-[52px] flex items-center gap-3 text-right text-danger hover:bg-danger-50 transition">
-          <div className="w-9 h-9 rounded-xl bg-danger-50 flex items-center justify-center"><LogOut size={18} /></div>
-          <span className="flex-1 text-[13px] font-bold">تسجيل الخروج</span>
-        </button>
+        <LogoutButton />
         <p className="text-center text-[10px] text-ink-400">جديد v1.0.0 — نموذج أولي تفاعلي</p>
       </div>
       <BottomNav variant={merchantMode ? 'merchant' : 'customer'} />
     </div>
+  )
+}
+
+function LogoutButton() {
+  const { dispatch } = useApp()
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="w-full card px-4 h-[52px] flex items-center gap-3 text-right text-danger hover:bg-danger-50 transition">
+        <div className="w-9 h-9 rounded-xl bg-danger-50 flex items-center justify-center"><LogOut size={18} /></div>
+        <span className="flex-1 text-[13px] font-bold">تسجيل الخروج</span>
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <h2 className="text-[18px] font-extrabold text-center">تأكيد تسجيل الخروج</h2>
+        <p className="text-[12px] text-ink-500 text-center mt-1 leading-relaxed">هل تريد فعلاً تسجيل الخروج؟ ستبقى قادراً على التصفح كزائر، لكن المفضلة والطلبات تتطلب الدخول مجدداً.</p>
+        <div className="flex gap-2 mt-5">
+          <button onClick={() => { setOpen(false); dispatch({ type: 'LOGOUT' }) }} className="flex-1 btn-danger btn-md">تأكيد الخروج</button>
+          <button onClick={() => setOpen(false)} className="flex-1 btn-ghost btn-md">إلغاء</button>
+        </div>
+      </Modal>
+    </>
   )
 }
 

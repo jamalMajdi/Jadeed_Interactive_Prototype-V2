@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { ArrowRight, Check, Heart, Home, Search, ShoppingBag, ShoppingCart, User, ReceiptText, Store, Package, BarChart3, ClipboardList, Wifi, WifiOff, RefreshCcw, BatteryFull, Signal, X, Plus, Minus, Star, ShieldCheck, MapPin, Navigation, AlertTriangle, Info, LogIn, UserPlus } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { CURRENCY, PAYMENT_STATUS, fmt, productById, storeById } from '../data/mock'
+import { CURRENCY, PAYMENT_STATUS, fmt, productById, storeById, normalizeStage } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  الشعار الرسمي لمنصة «جديد» — public/assets/logo.png (الاسم + العلامة، خلفية شفافة) يُعرض كما هو بلا قصّ أو تمطيط
@@ -180,17 +180,17 @@ export function Chip({ children, tone = 'ink', className = '' }) {
 }
 
 export function StageChip({ stage, by }) {
-  // دورة حياة مبسّطة: جديد → قيد التجهيز → في الطريق → تم التوصيل (+ ملغي / مرفوض) — by='merchant' يميّز إلغاء المتجر
+  // مرحلتان فعّالتان: جديد → قيد التوصيل (بعد قبول التاجر) → تم التوصيل (تلقائي بعد 24 ساعة)
   if (stage === 'cancelled' && by === 'merchant') return <Chip tone="danger">ألغاه المتجر</Chip>
+  const key = normalizeStage(stage)
   const map = {
     new: ['جديد', 'ink'],
-    preparing: ['قيد التجهيز', 'warning'],
-    out: ['في الطريق', 'secondary'],
+    out: ['قيد التوصيل', 'secondary'],
     delivered: ['تم التوصيل', 'success'],
     cancelled: ['ملغي', 'danger'],
     rejected: ['مرفوض', 'danger'],
   }
-  const [label, tone] = map[stage] || [stage, 'ink']
+  const [label, tone] = map[key] || [stage, 'ink']
   return <Chip tone={tone}>{label}</Chip>
 }
 
@@ -285,6 +285,9 @@ export function ProductThumb({ product, className = '', rounded = 'rounded-xl' }
 }
 
 export function StoreAvatar({ store, size = 44 }) {
+  if (store?.cover) {
+    return <img src={store.cover} alt="" className="rounded-xl object-cover shrink-0 border border-ink-100" style={{ width: size, height: size }} />
+  }
   return (
     <div className="rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary text-[9px] font-extrabold text-center leading-tight p-1 shrink-0" style={{ width: size, height: size }}>
       {store.initials}
@@ -416,6 +419,56 @@ export function AuthPrompt() {
   )
 }
 
+export function AddAgainPrompt() {
+  const { state, dispatch, showToast } = useApp()
+  const p = state.addConfirm
+  if (!p) return null
+  const close = () => dispatch({ type: 'ADD_CONFIRM_CLOSE' })
+  const yes = () => {
+    dispatch({ type: 'ADD_TO_CART', productId: p.productId, qty: p.qty || 1 })
+    close()
+    showToast('أُضيف إلى السلة', 'success')
+  }
+  return (
+    <div className="absolute inset-x-0 top-11 z-[62] px-3 animate-slide-up" role="alertdialog" aria-label="تأكيد إضافة المنتج مجدداً">
+      <div className="bg-white rounded-2xl shadow-modal p-3.5 border border-secondary-100">
+        <p className="text-[13px] font-extrabold text-ink-900">المنتج موجود بالفعل في السلة</p>
+        <p className="text-[11px] text-ink-500 mt-0.5 leading-relaxed">«{p.productName}» موجود مسبقاً. هل تريد إضافته مرة أخرى؟</p>
+        <div className="flex gap-2 mt-3">
+          <button onClick={yes} className="flex-1 btn-primary btn-sm">إضافة مرة أخرى</button>
+          <button onClick={close} className="flex-1 btn-ghost btn-sm">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function WelcomeBanner() {
+  const { state, dispatch, switchTab } = useApp()
+  const w = state.welcome
+  const [sec, setSec] = useState(5)
+  useEffect(() => { if (w) setSec(5) }, [w?.id])
+  useEffect(() => {
+    if (!w) return undefined
+    if (sec <= 0) { dispatch({ type: 'WELCOME_CLOSE' }); return undefined }
+    const t = setTimeout(() => setSec((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [w, sec, dispatch])
+  if (!w) return null
+  return (
+    <div className="absolute inset-x-0 top-11 z-[62] px-3 animate-slide-up" role="status" aria-label="أهلاً بك مجدداً">
+      <div className="bg-white rounded-2xl shadow-modal p-3.5 flex items-center gap-3 border border-primary-100">
+        <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary flex items-center justify-center shrink-0"><Check size={18} strokeWidth={2.6} /></div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-extrabold text-ink-900">أهلاً بك مجدداً في جديد</p>
+          <p className="text-[10px] text-ink-500">تم تسجيل دخولك بنجاح · يُغلق خلال {sec} ث</p>
+        </div>
+        <button onClick={() => { dispatch({ type: 'WELCOME_CLOSE' }); switchTab('home') }} className="h-8 px-3 rounded-full bg-primary text-white text-[11px] font-extrabold shrink-0">الذهاب للتسوق</button>
+      </div>
+    </div>
+  )
+}
+
 export function Toast() {
   const { toast } = useApp()
   if (!toast) return null
@@ -480,21 +533,15 @@ export function FavoriteButton({ productId, className = '' }) {
 }
 
 export function AddToCartButton({ product, size = 'xs', full = false }) {
-  const { dispatch, showToast, state, requireCustomer } = useApp()
+  const { state, requestAddToCart } = useApp()
   const closed = storeById(product.storeId)?.open === false // المتجر مغلق: لا يستقبل طلبات جديدة
   const inCart = state.cart[product.id] || 0
   const soldOut = product.stock <= 0
-  const maxed = inCart >= product.stock
   return (
     <button
       onClick={(e) => {
         e.stopPropagation()
-        if (closed) return showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger')
-        if (soldOut) return showToast('عذراً، نفدت الكمية من المخزون', 'danger')
-        if (!requireCustomer(product.shortName)) return // الزائر: نافذة مطالبة بتسجيل الدخول أو إنشاء حساب عميل
-        if (maxed) return showToast(`الحد الأقصى المتاح ${product.stock} قطعة`, 'danger')
-        dispatch({ type: 'ADD_TO_CART', productId: product.id })
-        showToast('أُضيف إلى السلة', 'success')
+        requestAddToCart(product)
       }}
       className={`btn-primary btn-${size} ${full ? 'w-full' : ''} ${soldOut || closed ? 'opacity-50' : ''}`}
     >
@@ -516,7 +563,7 @@ export function StoreLine({ storeId, onOpenStore, className = '' }) {
         e.stopPropagation()
         onOpenStore ? onOpenStore(store) : navigate('store', { id: store.id })
       }}
-      className={`flex items-center gap-1 text-[10px] font-bold text-primary max-w-full ${className}`}
+      className={`flex items-center gap-1 text-[10px] font-bold text-secondary max-w-full ${className}`}
       aria-label={`متجر ${store.name}`}
     >
       <Store size={11} strokeWidth={2.4} className="shrink-0" />

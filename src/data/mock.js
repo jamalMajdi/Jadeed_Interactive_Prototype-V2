@@ -34,7 +34,7 @@ export const STORES = [
     minOrder: 15000,
     description: 'المتجر الرسمي الرائد في بيع أحدث الإلكترونيات والسماعات والساعات الذكية الأصلية مع ضمان سنتين.',
     cover: '/img/store-cover.jpg',
-    owner: 'محمد سعيد',
+    owner: 'محمد سعيد أحمد علي',
     ownerAccount: 'mohammed.saeed@gmail.com',
     phone: '777 200 300',
     deliveryTime: '45-60 دقيقة',
@@ -56,7 +56,7 @@ export const STORES = [
     prepTime: '20-30 دقيقة',
     minOrder: 5000,
     description: 'أجود العطور الشرقية والعود والمسك الأصلي من مصادر موثوقة.',
-    cover: null,
+    cover: '/img/perfume.jpg',
     owner: 'سلوى العريقي',
     ownerAccount: 'aljazeera.perfume@gmail.com',
     phone: '771 480 210',
@@ -79,7 +79,7 @@ export const STORES = [
     prepTime: '15-25 دقيقة',
     minOrder: 3000,
     description: 'بن يمني معطر وأدوات تحضير القهوة للمنزل والمكتب.',
-    cover: null,
+    cover: '/img/coffee.jpg',
     owner: 'أمين الشرعبي',
     ownerAccount: 'barista.home.tz@gmail.com',
     phone: '733 905 118',
@@ -148,6 +148,7 @@ export const PRODUCTS = [
     stock: 24,
     badge: 'الأكثر مبيعاً',
     image: '/img/headphones.jpg',
+    images: ['/img/headphones.jpg', '/img/watch.jpg', '/img/store-cover.jpg'],
     bg: '#FBBF24',
     description:
       'استمتع بنقاء صوتي فائق وتجربة صوت ثلاثي الأبعاد مع عزل تام للضوضاء المحيطة. وسائد أذن ميموري فوم مريحة للاستخدام الطويل مع ميكروفونات ذكية للمكالمات الواضحة.',
@@ -170,6 +171,7 @@ export const PRODUCTS = [
     stock: 18,
     badge: null,
     image: '/img/watch.jpg',
+    images: ['/img/watch.jpg', '/img/headphones.jpg'],
     bg: '#E5E7EB',
     description: 'ساعة ذكية بهيكل تيتانيوم خفيف، تتبع للنبض والأكسجين والنوم، ومقاومة للماء حتى 50 مترًا.',
     specs: [
@@ -191,6 +193,7 @@ export const PRODUCTS = [
     stock: 42,
     badge: null,
     image: '/img/perfume.jpg',
+    images: ['/img/perfume.jpg', '/img/store-cover.jpg'],
     bg: '#FCE7F3',
     description: 'مزيج فاخر من العود الكمبودي والمسك الأبيض بثبات يدوم أكثر من 12 ساعة.',
     specs: [
@@ -211,6 +214,7 @@ export const PRODUCTS = [
     stock: 15,
     badge: null,
     image: '/img/shoes.jpg',
+    images: ['/img/shoes.jpg'],
     bg: '#FEE2E2',
     description: 'حذاء جري بوزن 210 جرام فقط، نعل رغوي عالي الارتداد وقماش شبكي يسمح بتهوية ممتازة.',
     specs: [
@@ -231,6 +235,7 @@ export const PRODUCTS = [
     stock: 45,
     badge: 'منتج محلي',
     image: '/img/coffee.jpg',
+    images: ['/img/coffee.jpg', '/img/espresso.jpg'],
     bg: '#FEF3C7',
     description: 'بن خولاني من مرتفعات اليمن، تحميص متوسط بنكهات الشوكولاتة والفواكه المجففة.',
     specs: [
@@ -251,6 +256,7 @@ export const PRODUCTS = [
     stock: 12,
     badge: null,
     image: '/img/espresso.jpg',
+    images: ['/img/espresso.jpg', '/img/coffee.jpg', '/img/store-cover.jpg'],
     bg: '#E0E7FF',
     description: 'ماكينة إسبريسو بضغط 15 بار مع مبخّر حليب، خزان مياه 1.5 لتر وتسخين سريع خلال 30 ثانية.',
     specs: [
@@ -302,7 +308,7 @@ export const PRODUCTS = [
 export const PROMOS = [
   { id: 'pr-delivery', badge: `جديد في ${CITY}`, title: 'توصيل مجاني داخل المدينة', text: 'من متاجر معتمدة — الأجهزة الإلكترونية والساعات وأكثر', cta: 'تسوق الآن', tone: 'secondary', action: { type: 'category', id: 'electronics' } },
   { id: 'pr-coffee', badge: 'عرض الأسبوع', title: 'بن يمني أصلي يصلك طازجاً', text: 'عالم الباريستا المنزلي — تحميص طازج وتوصيل خلال 15-25 دقيقة', cta: 'زيارة المتجر', tone: 'primary', action: { type: 'store', id: 'st-barista' } },
-  { id: 'pr-perfume', badge: 'وصل حديثاً', title: 'عطور شرقية فاخرة', text: 'عود ومسك وعنبر من عطور الجزيرة الملكية — أصلية ومضمونة من التاجر', cta: 'اكتشف العطور', tone: 'dark', action: { type: 'category', id: 'beauty' } },
+  { id: 'pr-perfume', badge: 'وصل حديثاً', title: 'عطور شرقية فاخرة', text: 'عود ومسك وعنبر من عطور الجزيرة الملكية — أصلية ومضمونة من التاجر', cta: 'اكتشف العطور', tone: 'brand', action: { type: 'category', id: 'beauty' } },
   { id: 'pr-stores', badge: 'متاجر معتمدة', title: 'تسوق من أقرب المتاجر إليك', text: 'كل المتاجر موثّقة وتُعرض حسب المسافة من موقعك', cta: 'كل المتاجر', tone: 'secondary', action: { type: 'tab', tab: 'nearbyStores' } },
 ]
 
@@ -315,11 +321,11 @@ export const COUPONS = {}
 
 // موقع توصيل واحد لكل حساب — يُحدَّث (يدوياً أو من الخريطة) ولا تُنشأ قائمة عناوين متعددة
 export const ADDRESSES = [
-  { id: 'a1', title: 'موقعي', details: 'المسبح، قرب جولة المسبح، تعز', phone: '773030064', name: 'محمد سعيد' },
+  { id: 'a1', title: 'موقعي', details: 'المسبح، قرب جولة المسبح، تعز', phone: '773030064', name: 'محمد سعيد أحمد علي' },
 ]
 
 export const USER = {
-  name: 'محمد سعيد',
+  name: 'محمد سعيد أحمد علي',
   phone: '773030064',
   email: 'mohammed.saeed@gmail.com',
   area: 'المسبح',
@@ -338,12 +344,12 @@ export const COURIER = {
 // مراحل دورة حياة الطلب (موحّدة بين واجهة العميل ولوحة التاجر)
 export const ORDER_STAGES = [
   { key: 'new', label: 'جديد', desc: 'تم إرسال الطلب إلى المتجر وهو بانتظار القبول' },
-  { key: 'preparing', label: 'قيد التجهيز', desc: 'قبل المتجر الطلب ويجري تجهيزه وتغليفه الآن' },
-  { key: 'out', label: 'في الطريق', desc: 'مندوب التوصيل في طريقه إلى عنوانك' },
-  { key: 'delivered', label: 'تم التوصيل', desc: 'تم تسليم الطلب بنجاح' },
+  { key: 'out', label: 'قيد التوصيل', desc: 'قبل المتجر الطلب وهو في طريقه إلى عنوانك' },
+  { key: 'delivered', label: 'تم التوصيل', desc: 'يُحدَّث تلقائياً بعد 24 ساعة من قبول التاجر' },
 ]
-// حالات نهائية خارج المسار: cancelled (ألغاه العميل قبل التجهيز) · rejected (اعتذر المتجر)
-// انتقالان يدويان فقط من التاجر: قبول وبدء التجهيز ← ثم تسليم للمندوب (والتسليم النهائي يُؤكَّد تلقائياً أو من التاجر)
+// حالات نهائية خارج المسار: cancelled · rejected
+// التاجر يقبل فقط (جديد → قيد التوصيل). التسليم يُحدَّث تلقائياً بعد 24 ساعة دون تدخل.
+export const normalizeStage = (s) => (s === 'preparing' ? 'out' : s)
 
 // حالة الدفع الموحّدة للطلب
 export const PAYMENT_STATUS = {
@@ -421,7 +427,7 @@ export const MERCHANT = {
 }
 
 export const MERCHANT_NOTIFICATIONS = [
-  { id: 'm1', title: 'طلب جديد بانتظار القبول', body: 'طلب رقم JD-984210 بحاجة للموافقة وبدء التجهيز.', time: 'منذ 10 دقائق' },
+  { id: 'm1', title: 'طلب جديد بانتظار القبول', body: 'طلب رقم JD-984210 بحاجة للموافقة ليبدأ التوصيل.', time: 'منذ 10 دقائق' },
   { id: 'm2', title: 'تنبيه مخزون منخفض', body: 'الكمية المتبقية لمنتج "ساعة ذكية رياضية" أقل من 5 قطع.', time: 'منذ ساعتين' },
   { id: 'm3', title: 'تم تحويل مستحقاتك البنكية', body: 'تم إيداع مبلغ 845,000 ر.ي في حسابك المصرفي المسجل.', time: 'أمس' },
 ]

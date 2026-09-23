@@ -1,6 +1,6 @@
 // فحص المرحلة 6 (RC-7) في وضع النموذج التفاعلي: OTP (تحميل/انتهاء/إعادة إرسال) · المخزون · البحث المدمج · الموقع الواحد ·
 // بيانات العميل عند الطلب · إلغاء التاجر بعد القبول وأثره على العميل · متجر واحد للتاجر · زر التسوق · الانقطاع · Toast من الأسفل · أيقونة السلة
-const PW = process.env.PLAYWRIGHT_PATH || '/home/user/.npm/_npx/f0a362733743bae2/node_modules/playwright/index.mjs'
+const PW = process.env.PLAYWRIGHT_PATH || '/home/user/jadeed-app/node_modules/playwright/index.mjs'
 const { chromium } = await import(PW)
 const browser = await chromium.launch()
 const errors = []

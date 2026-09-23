@@ -10,26 +10,25 @@ import {
   STAGE_INDEX,
   productById,
   storeById,
+  normalizeStage,
 } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  App State (Context + useReducer)
 //  يحاكي التطبيق الحقيقي: التنقل، السلة (حساب رياضي صحيح)،
-//  المفضلة، الطلبات ودورة حياتها، المصادقة (OTP من 4 أرقام).
+//  المفضلة، الطلبات ودورة حياتها، المصادقة بالبريد (رابط التحقق — بدون OTP).
 // ─────────────────────────────────────────────────────────────
 
 const AppContext = createContext(null)
 
-export const OTP_LENGTH = 4 // ← موحّد في كل الشاشات
-export const OTP_MAX_ATTEMPTS = 3
-export const DEMO_OTP = '1234'
-
 const initialState = {
   authPrompt: null, // { productName, returnTo } — نافذة مطالبة الزائر بالدخول/إنشاء حساب عند الإضافة للسلة
+  addConfirm: null, // { productId, productName, qty } — Toast علوي: المنتج موجود، هل تريد إضافته مجدداً؟
+  welcome: null, // { id } — إشعار «أهلاً بك مجدداً» فوق الشاشة الحالية
   // التنقل: مكدس شاشات يسمح بالرجوع
   stack: [{ name: 'splash' }],
   // المصادقة
-  auth: { status: 'guest', accountType: 'customer', email: '', otpAttempts: 0, lockedUntil: null, returnTo: null },
+  auth: { status: 'guest', accountType: 'customer', email: '', returnTo: null },
   // السلة: { productId: qty }
   cart: {},
   coupon: null,
@@ -71,24 +70,25 @@ function reducer(state, action) {
       // نوع الحساب واحد فقط: عميل أو تاجر
       return ['customer', 'merchant'].includes(action.accountType) ? { ...state, auth: { ...state.auth, accountType: action.accountType } } : state
     case 'SET_EMAIL':
-      return { ...state, auth: { ...state.auth, email: action.email, otpAttempts: 0 } }
-    case 'OTP_FAIL': {
-      const attempts = state.auth.otpAttempts + 1
-      const locked = attempts >= OTP_MAX_ATTEMPTS
-      return { ...state, auth: { ...state.auth, otpAttempts: attempts, lockedUntil: locked ? Date.now() + 15 * 60 * 1000 : null } }
-    }
-    case 'OTP_RESET':
-      return { ...state, auth: { ...state.auth, otpAttempts: 0, lockedUntil: null } }
+      return { ...state, auth: { ...state.auth, email: action.email } }
     case 'LOGIN': {
       const isMerchantAccount = state.auth.accountType === 'merchant'
       return {
         ...state,
-        auth: { ...state.auth, status: 'authenticated', otpAttempts: 0, lockedUntil: null },
+        auth: { ...state.auth, status: 'authenticated' },
         authPrompt: null,
+        addConfirm: null,
+        welcome: { id: Date.now() },
         // الحظر لا يُرفع بإعادة تسجيل الدخول (يبقى حتى تقرر الإدارة)
         merchantStatus: isMerchantAccount ? (state.merchantStatus === 'banned' ? 'banned' : 'approved') : state.merchantStatus,
       }
     }
+    case 'WELCOME_CLOSE':
+      return { ...state, welcome: null }
+    case 'ADD_CONFIRM':
+      return { ...state, addConfirm: action.prompt }
+    case 'ADD_CONFIRM_CLOSE':
+      return { ...state, addConfirm: null }
     case 'AUTH_GATE': // حفظ الوجهة للعودة إليها بعد تسجيل الدخول
       return { ...state, auth: { ...state.auth, returnTo: action.returnTo || null } }
     case 'CLEAR_RETURN_TO':
@@ -165,16 +165,17 @@ function reducer(state, action) {
       return { ...state, orders: [...created, ...state.orders], orderCounter: counter, cart: {}, coupon: null }
     }
     case 'CONFIRM_PAYMENT': {
-      // تأكيد التاجر لاستلام التحويل: يُثبت الدفع وينقل الطلب مباشرة إلى التجهيز دون خطوة يدوية إضافية
+      // تأكيد التاجر لاستلام التحويل: يُثبت الدفع وينقل الطلب إلى «قيد التوصيل»
       return {
         ...state,
-        orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, paymentStatus: 'paid', stage: o.stage === 'new' ? 'preparing' : o.stage } : o)),
+        orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, paymentStatus: 'paid', stage: o.stage === 'new' ? 'out' : normalizeStage(o.stage), acceptedAt: o.acceptedAt || Date.now() } : o)),
       }
     }
     case 'SET_ORDER_STAGE': {
+      const stage = normalizeStage(action.stage)
       return {
         ...state,
-        orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, stage: action.stage } : o)),
+        orders: state.orders.map((o) => (o.id === action.orderId ? { ...o, stage, acceptedAt: stage === 'out' ? (o.acceptedAt || Date.now()) : o.acceptedAt } : o)),
       }
     }
     case 'CANCEL_ORDER':
@@ -338,25 +339,42 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
     return false
   }, [])
 
+  // إضافة للسلة: الضغطة الأولى تضيف فوراً؛ إن كان المنتج موجوداً تُعرض مطالبة علوية قبل الإضافة مجدداً
+  const requestAddToCart = useCallback((product, qty = 1) => {
+    if (!product) return
+    if (!requireCustomer(product.shortName)) return
+    const st = storeById(product.storeId)
+    if (st?.open === false) { showToast('المتجر مغلق حالياً ولا يستقبل طلبات جديدة', 'danger'); return }
+    if (product.stock <= 0) { showToast('عذراً، نفدت الكمية من المخزون', 'danger'); return }
+    const inCart = stateRef.current.cart[product.id] || 0
+    if (inCart + qty > product.stock) { showToast(`الحد الأقصى المتاح ${product.stock} قطعة`, 'danger'); return }
+    if (inCart > 0) {
+      dispatch({ type: 'ADD_CONFIRM', prompt: { productId: product.id, productName: product.shortName, qty } })
+      return
+    }
+    dispatch({ type: 'ADD_TO_CART', productId: product.id, qty })
+    showToast(qty > 1 ? `أُضيف ${qty} × ${product.shortName} إلى السلة` : 'أُضيف إلى السلة', 'success')
+  }, [requireCustomer, showToast])
+
   const cartSummary = useMemo(() => computeCart(state.cart, state.coupon), [state.cart, state.coupon, state.catalogVersion])
 
-  // محاكاة تقدم الطلب تلقائيًا (كأن التاجر يعالجه) — يمكن للتاجر تسريعه يدويًا من لوحته
-  // دورة مبسّطة: جديد → قيد التجهيز (30 ث) → في الطريق (30 ث) → تم التوصيل (40 ث)
-  // الطلبات المدفوعة بالتحويل تنتظر تأكيد التاجر ولا تتقدم تلقائياً من «جديد»
-  const AUTO_DELAYS = { new: 30000, preparing: 30000, out: 40000 }
+  // بعد قبول التاجر يصبح الطلب «قيد التوصيل»، وبعد 24 ساعة يُحدَّث تلقائياً إلى «تم التوصيل» دون تدخل
+  const DELIVER_AFTER_MS = 24 * 60 * 60 * 1000
   useEffect(() => {
     if (!autoAdvance) return undefined
     const timers = state.orders
-      .filter((o) => AUTO_DELAYS[o.stage] !== undefined && !(o.stage === 'new' && o.paymentStatus === 'pending_confirmation'))
-      .map((o) =>
-        setTimeout(() => {
-          const nextStage = ORDER_STAGES[STAGE_INDEX[o.stage] + 1]?.key
-          if (nextStage) dispatch({ type: 'SET_ORDER_STAGE', orderId: o.id, stage: nextStage })
-        }, AUTO_DELAYS[o.stage]),
-      )
-    return () => timers.forEach(clearTimeout)
+      .filter((o) => normalizeStage(o.stage) === 'out' && o.acceptedAt)
+      .map((o) => {
+        const remaining = DELIVER_AFTER_MS - (Date.now() - o.acceptedAt)
+        if (remaining <= 0) {
+          dispatch({ type: 'SET_ORDER_STAGE', orderId: o.id, stage: 'delivered' })
+          return null
+        }
+        return setTimeout(() => dispatch({ type: 'SET_ORDER_STAGE', orderId: o.id, stage: 'delivered' }), remaining)
+      })
+    return () => timers.forEach((t) => t && clearTimeout(t))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAdvance, state.orders.map((o) => `${o.id}:${o.stage}`).join('|')])
+  }, [autoAdvance, state.orders.map((o) => `${o.id}:${o.stage}:${o.acceptedAt || ''}`).join('|')])
 
   const value = useMemo(
     () => ({
@@ -374,6 +392,7 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       isBanned: state.merchantStatus === 'banned',
       requireAuth,
       requireCustomer,
+      requestAddToCart,
       isFavorite: (id) => state.favorites.has(id),
       toast,
       showToast,
@@ -381,7 +400,7 @@ export function AppProvider({ children, initial, autoAdvance = true }) {
       currentAddress: state.addresses.find((a) => a.id === state.addressId) || state.addresses[0],
       merchantStore: storeById(MERCHANT.storeId), // متجر التاجر الوحيد
     }),
-    [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth, requireCustomer],
+    [state, cartSummary, navigate, back, switchTab, toast, showToast, requireAuth, requireCustomer, requestAddToCart],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

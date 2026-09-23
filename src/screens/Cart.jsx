@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { ShoppingBag, ShoppingCart, Trash2, Tag, X, Check, ChevronLeft, MapPin, Banknote, Wallet, CreditCard, AlertTriangle, PackageX, RefreshCcw, Truck, Bike, MessageCircle, Phone, ReceiptText, Download, Package, Clock, XCircle, ArrowRight, Store, Landmark, Upload, ImageIcon, Copy, ShieldCheck } from 'lucide-react'
+import { ShoppingBag, ShoppingCart, Trash2, Tag, X, Check, ChevronLeft, MapPin, Banknote, Wallet, AlertTriangle, PackageX, RefreshCcw, Truck, Bike, MessageCircle, Phone, ReceiptText, Download, Package, Clock, XCircle, ArrowRight, Store, Landmark, Upload, ImageIcon, Copy, ShieldCheck, Bell } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, Stepper, StateScreen, KeyValue, StageChip, Logo, PaymentChip, StoreAvatar } from '../components/ui'
-import { COURIER, CURRENCY, ORDER_STAGES, STAGE_INDEX, fmt, productById, storeById, CITY } from '../data/mock'
+import { StatusBar, HomeIndicator, TopBar, BottomNav, Price, Chip, ProductThumb, Stepper, StateScreen, KeyValue, StageChip, Logo, PaymentChip, StoreAvatar, Modal } from '../components/ui'
+import { COURIER, CURRENCY, ORDER_STAGES, STAGE_INDEX, fmt, productById, storeById, CITY, normalizeStage } from '../data/mock'
 
 // ─────────────────────────────────────────────────────────────
 //  سلة المشتريات (CUS-026) — كل الأرقام محسوبة من computeCart
@@ -17,7 +17,7 @@ export function CartScreen() {
     return (
       <div className="flex-1 flex flex-col bg-ink-50 relative">
         <StatusBar />
-        <TopBar title="سلة المشتريات" right={<ShoppingCart className="text-primary" size={22} />} />
+        <TopBar title="سلة المشتريات" right={<div className="flex items-center gap-2"><button onClick={() => navigate('notifications')} className="icon-btn" aria-label="التنبيهات"><Bell size={18} className="text-ink-500" /></button><ShoppingCart className="text-primary" size={22} /></div>} />
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-10">
           <div className="w-24 h-24 rounded-3xl bg-ink-100 text-ink-400 flex items-center justify-center mb-5"><ShoppingCart size={40} strokeWidth={1.6} /></div>
           <h2 className="text-[20px] font-extrabold">سلتك فارغة حالياً</h2>
@@ -36,7 +36,7 @@ export function CartScreen() {
   return (
     <div className="flex-1 flex flex-col bg-ink-50">
       <StatusBar />
-      <TopBar title="سلة المشتريات" subtitle={`${cart.itemCount} عناصر من ${cart.storeCount} ${cart.storeCount === 1 ? 'متجر' : 'متاجر'}`} right={<ShoppingCart className="text-primary" size={22} />} />
+      <TopBar title="سلة المشتريات" subtitle={`${cart.itemCount} عناصر من ${cart.storeCount} ${cart.storeCount === 1 ? 'متجر' : 'متاجر'}`} right={<div className="flex items-center gap-2"><button onClick={() => navigate('notifications')} className="icon-btn" aria-label="التنبيهات"><Bell size={18} className="text-ink-500" /></button><ShoppingCart className="text-primary" size={22} /></div>} />
       <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4 space-y-4">
         {cart.storeCount > 1 && (
           <div className="rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 text-[11px] font-medium text-primary flex items-start gap-2">
@@ -120,8 +120,7 @@ const Row = ({ k, v, tone = 'text-ink-500' }) => (
 const PAYMENTS = [
   { key: 'cod', Icon: Banknote, label: 'الدفع نقداً عند الاستلام', desc: 'ادفع للمندوب عند وصول الطلب' },
   { key: 'transfer', Icon: Landmark, label: 'تحويل بنكي / محفظة إلى التاجر', desc: 'حوّل المبلغ إلى حساب المتجر وأرفق صورة الإيصال' },
-  { key: 'wallet', Icon: Wallet, label: 'محفظة جديد الرقمية', desc: 'الرصيد المتاح: 50 ر.ي' },
-  { key: 'card', Icon: CreditCard, label: 'بطاقة بنكية', desc: 'قريباً' , disabled: true },
+  { key: 'wallet', Icon: Wallet, label: 'محفظة جديد الرقمية', desc: 'قريباً', disabled: true },
 ]
 
 // بيانات الدفع الخاصة بكل تاجر + رفع إيصال التحويل لكل متجر (طلب لكل متجر)
@@ -131,10 +130,12 @@ function TransferPanel({ group, receipt, onReceipt, showToast }) {
   const copy = (v) => { navigator.clipboard?.writeText(v).catch(() => {}); showToast('تم نسخ رقم الحساب', 'success') }
   return (
     <div className="rounded-card border border-primary-100 bg-primary-50/40 p-3 space-y-2.5">
-      <div className="flex items-center gap-2">
-        <StoreAvatar store={group.store} size={30} />
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl overflow-hidden border border-ink-100 bg-white shrink-0">
+          {group.store?.cover ? <img src={group.store.cover} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary-50 flex items-center justify-center text-primary text-[10px] font-bold">{group.store?.initials?.slice(0, 2)}</div>}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-extrabold text-ink-900 truncate">حوّل إلى {group.store.name}</p>
+          <p className="text-[12px] font-extrabold text-ink-900 truncate flex items-center gap-1.5"><StoreAvatar store={group.store} size={22} /> حوّل إلى {group.store.name}</p>
           <p className="text-[10px] text-ink-500">المبلغ المطلوب لهذا المتجر: <b className="text-secondary tabular">{fmt(group.total)} {CURRENCY}</b></p>
         </div>
       </div>
@@ -524,14 +525,31 @@ export function OrderDetails() {
           </div>
         </div>
 
-        {canCancel && (
-          <button onClick={() => { dispatch({ type: 'CANCEL_ORDER', orderId: order.id }); navigate('orderCancelled', { orderId: order.id }, { replace: true }) }} className="w-full btn-outline btn-md !text-danger !border-danger-100 hover:!bg-danger-50">
-            <XCircle size={16} /> إلغاء الطلب
-          </button>
-        )}
+        {canCancel && <CancelOrderButton order={order} />}
       </div>
       <HomeIndicator />
     </div>
+  )
+}
+
+function CancelOrderButton({ order }) {
+  const { dispatch, navigate } = useApp()
+  const [open, setOpen] = useState(false)
+  const stageLabel = { new: 'جديد', out: 'قيد التوصيل', delivered: 'تم التوصيل' }[normalizeStage(order.stage)] || order.stage
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="w-full btn-outline btn-md !text-danger !border-danger-100 hover:!bg-danger-50">
+        <XCircle size={16} /> إلغاء الطلب
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <h2 className="text-[16px] font-extrabold text-center">هل تريد فعلاً إلغاء هذا الطلب؟</h2>
+        <p className="text-[12px] text-ink-500 text-center mt-1">حالته الحالية: <b className="text-ink-900">{stageLabel}</b> — رقم الطلب <span className="font-mono text-primary" dir="ltr">{order.id}</span></p>
+        <div className="flex gap-2 mt-5">
+          <button onClick={() => { dispatch({ type: 'CANCEL_ORDER', orderId: order.id }); setOpen(false); navigate('orderCancelled', { orderId: order.id }, { replace: true }) }} className="flex-1 btn-danger btn-md">تأكيد الإلغاء</button>
+          <button onClick={() => setOpen(false)} className="flex-1 btn-ghost btn-md">تراجع</button>
+        </div>
+      </Modal>
+    </>
   )
 }
 
@@ -553,7 +571,7 @@ export function Tracking() {
   if (!order) return null
   const idx = STAGE_INDEX[order.stage] ?? -1
   const store = storeById(order.storeId)
-  const times = ['10:30 ص', '10:45 ص', '11:20 ص', 'المتوقع قريباً']
+  const times = ['10:30 ص', '10:45 ص', 'تم التوصيل تلقائياً بعد 24 ساعة']
   if (order.stage === 'delivered') {
     return (
       <StateScreen tone="success" icon={Check} code="CUS-035" title="تم استلام الطلب وتوصيله!" description="نتمنى أن تكون تجربتك مع جديد رائعة ومريحة." primary={{ label: 'العودة للرئيسية', onClick: () => navigate('home', {}, { resetTo: true }) }} secondary={{ label: 'تقييم التجربة', onClick: () => showToast('شكراً لتقييمك!', 'success') }}>
@@ -565,7 +583,7 @@ export function Tracking() {
     const byMerchant = order.stage === 'rejected' || order.cancelledBy === 'merchant'
     return (
       <StateScreen tone="error" icon={XCircle} title={order.stage === 'rejected' ? 'اعتذر المتجر عن تنفيذ الطلب' : byMerchant ? 'ألغى المتجر هذا الطلب' : 'تم إلغاء هذا الطلب'} description={byMerchant ? 'لم يتم خصم أي مبالغ، وإن كنت قد حوّلت مبلغاً فسيُعاد إليك. يمكنك إعادة الطلب من متجر آخر.' : 'لم يتم خصم أي مبالغ. يمكنك إعادة الطلب من متجر آخر.'} primary={{ label: 'العودة للطلبات', onClick: () => navigate('orders', {}, { resetTo: true }) }}>
-        <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['الحالة:', order.stage === 'rejected' ? 'مرفوض من المتجر' : byMerchant ? 'ملغي من المتجر' : 'ملغي بطلبك', 'text-danger-700'], ...(order.cancelReason ? [['سبب الإلغاء:', order.cancelReason]] : []), ...(byMerchant && order.cancelledFrom && order.cancelledFrom !== 'new' ? [['أُلغي بعد مرحلة:', order.cancelledFrom === 'preparing' ? 'قيد التجهيز' : 'في الطريق']] : [])]} />
+        <KeyValue rows={[['رقم الطلب:', order.id, 'text-primary'], ['الحالة:', order.stage === 'rejected' ? 'مرفوض من المتجر' : byMerchant ? 'ملغي من المتجر' : 'ملغي بطلبك', 'text-danger-700'], ...(order.cancelReason ? [['سبب الإلغاء:', order.cancelReason]] : []), ...(byMerchant && order.cancelledFrom && order.cancelledFrom !== 'new' ? [['أُلغي بعد مرحلة:', order.cancelledFrom === 'out' ? 'قيد التوصيل' : order.cancelledFrom]] : [])]} />
       </StateScreen>
     )
   }
@@ -588,7 +606,7 @@ export function Tracking() {
         ) : (
           <div className="card p-3 flex items-center gap-3 bg-primary-50/60 border-primary-100">
             <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0"><Clock size={18} /></div>
-            <div className="text-[11px] font-medium text-ink-700 leading-relaxed">{order.stage === 'new' && order.paymentStatus === 'pending_confirmation' ? 'إيصال التحويل وصل إلى التاجر — بمجرد تأكيده استلام المبلغ يبدأ التجهيز مباشرة.' : order.stage === 'new' ? 'طلبك بانتظار قبول المتجر وبدء التجهيز.' : `${store.name} يجهّز طلبك الآن — سيظهر الكابتن عند خروج الطلب للتوصيل (خلال ${store.deliveryTime}).`}</div>
+            <div className="text-[11px] font-medium text-ink-700 leading-relaxed">{order.stage === 'new' && order.paymentStatus === 'pending_confirmation' ? 'إيصال التحويل وصل إلى التاجر — بمجرد تأكيده استلام المبلغ يبدأ التوصيل مباشرة.' : order.stage === 'new' ? 'طلبك بانتظار قبول المتجر ليبدأ التوصيل.' : `طلبك الآن قيد التوصيل من ${store.name} — سيصل خلال ${store.deliveryTime}.`}</div>
           </div>
         )}
 

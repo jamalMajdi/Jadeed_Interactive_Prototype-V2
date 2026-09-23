@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './store/AppContext'
-import { Toast, Logo, OfflineBanner, AuthPrompt } from './components/ui'
-import { Splash, Onboarding, AccountType, Login, OtpSent, OtpVerify, OtpLocked, LoginSuccess, Register, RegisterSuccess, RegisterFailed, ForgotPassword } from './screens/Onboarding'
+import { Toast, Logo, OfflineBanner, AuthPrompt, AddAgainPrompt, WelcomeBanner } from './components/ui'
+import { Splash, Onboarding, AccountType, Login, VerifyLinkSent, LoginSuccess, Register, RegisterSuccess, RegisterFailed, ForgotPassword, ResetPassword } from './screens/Onboarding'
 import { LocationPermission, LocationSuccess, LocationDenied, Addresses, MapPinScreen, Home, NearbyStores, StoreScreen, ProductScreen, SearchScreen, FiltersScreen, Favorites } from './screens/Shopping'
 import { CartScreen, Checkout, OrderSuccess, OrderFailed, OutOfStock, Orders, OrderDetails, OrderCancelled, Tracking } from './screens/Cart'
 import { Account, Notifications, Support, Legal } from './screens/Account'
@@ -18,14 +18,13 @@ export const SCREENS = {
   onboarding: Onboarding,
   accountType: AccountType,
   login: Login,
-  otpSent: OtpSent,
-  otp: OtpVerify,
-  otpLocked: OtpLocked,
+  verifyLinkSent: VerifyLinkSent,
   loginSuccess: LoginSuccess,
   register: Register,
   registerSuccess: RegisterSuccess,
   registerFailed: RegisterFailed,
   forgotPassword: ForgotPassword,
+  resetPassword: ResetPassword,
 
   locationPermission: LocationPermission,
   locationSuccess: LocationSuccess,
@@ -110,6 +109,8 @@ function PhoneFrame({ children }) {
         <div className="absolute inset-0 overflow-hidden">{children}</div>
         <OfflineBanner />
         <AuthPrompt />
+        <AddAgainPrompt />
+        <WelcomeBanner />
         <Toast />
       </div>
     </div>
@@ -170,11 +171,11 @@ const STATS = [
 ]
 const FIXES = [
   ['Design Tokens موحّدة', '#5002C9 أساسي · #FF5715 ثانوي · سلّم رمادي واحد (ink)'],
-  ['OTP = 4 أرقام', 'موحّد في كل الشاشات مع قفل بعد 3 محاولات (CUS-006)'],
+  ['تأكيد البريد برابط', 'بدون OTP — رابط تحقق بعد إنشاء الحساب ورابط استعادة كلمة المرور'],
   ['أرقام الطلبات JD-XXXXXX', 'صيغة واحدة في السلة والتتبع والفاتورة ولوحة التاجر'],
   ['حساب السلة رياضياً', 'المجموع + التوصيل = الإجمالي، بلا أرقام ثابتة'],
   ['شريط تنقل موحّد RTL', 'ترتيب وأيقونات ثابتة للعميل وللتاجر مع شارات حيّة'],
-  ['دورة حياة الطلب', 'جديد → مقبول → تحضير → جاهز → توصيل → تم، مزامنة تاجر ↔ عميل'],
+  ['دورة حياة الطلب', 'جديد → قيد التوصيل (بعد قبول التاجر) → تم التوصيل تلقائياً بعد 24 ساعة'],
 ]
 
 function Landing({ go }) {
@@ -220,9 +221,9 @@ function Landing({ go }) {
                 <span className="text-[11px] font-extrabold bg-white/15 rounded-full px-3 h-7 flex items-center">MVP تفاعلي</span>
               </div>
               <h2 className="text-[22px] font-extrabold mt-5">تجربة النموذج الأولي</h2>
-              <p className="text-[12px] text-white/85 font-medium leading-relaxed mt-1">Interactive Prototype — يبدأ من شاشة البداية والتهيئة ويستمر بتدفق حقيقي: تسجيل، OTP، تسوّق، سلة بحساب رياضي، طلب، تتبع، ولوحة تاجر تعالج الطلب نفسه.</p>
+              <p className="text-[12px] text-white/85 font-medium leading-relaxed mt-1">Interactive Prototype — يبدأ من شاشة البداية والتهيئة ويستمر بتدفق حقيقي: تسجيل برابط التحقق، تسوّق، سلة بحساب رياضي، طلب، تتبع، ولوحة تاجر تعالج الطلب نفسه.</p>
               <div className="grid grid-cols-3 gap-2 mt-4 text-[10px] font-bold">
-                <span className="bg-white/10 rounded-xl px-2 py-1.5 text-center">OTP: 1234</span>
+                <span className="bg-white/10 rounded-xl px-2 py-1.5 text-center">رابط التحقق</span>
                 <span className="bg-white/10 rounded-xl px-2 py-1.5 text-center">JADEED20</span>
                 <span className="bg-white/10 rounded-xl px-2 py-1.5 text-center">لوحة عرض جانبية</span>
               </div>
@@ -419,10 +420,10 @@ function DemoPanel({ go }) {
       <div className="rounded-2xl bg-white/60 backdrop-blur border border-white p-3 space-y-1.5">
         <p className="text-[11px] font-extrabold text-ink-500 px-1 mb-1">اختصارات العرض</p>
         <Btn onClick={() => navigate('splash', {}, { resetTo: true })} Icon={RotateCcw}>إعادة التشغيل من البداية</Btn>
-        <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); switchTab('home') }} Icon={ShoppingBag}>الدخول مباشرة كعميل</Btn>
+        <Btn onClick={() => { if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN', welcome: true }); switchTab('home') }} Icon={ShoppingBag}>الدخول مباشرة كعميل</Btn>
         <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'merchant' }); dispatch({ type: 'LOGIN' }); switchTab('m-dashboard') }} Icon={Store}>لوحة التاجر (M-050)</Btn>
         <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'merchant' }); dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'banned' }); navigate('merchantBanned', {}, { resetTo: true }) }} Icon={Ban}>محاكاة: متجر محظور</Btn>
-        <Btn onClick={() => navigate('login', {}, { resetTo: true })} Icon={KeyRound}>شاشة الدخول (OTP = 1234)</Btn>
+        <Btn onClick={() => navigate('login', {}, { resetTo: true })} Icon={KeyRound}>شاشة الدخول (بريد + كلمة مرور)</Btn>
         <Btn onClick={() => { dispatch({ type: 'SET_ACCOUNT_TYPE', accountType: 'customer' }); if (state.auth.status !== 'authenticated') dispatch({ type: 'LOGIN' }); dispatch({ type: 'MERCHANT_STATUS', status: 'none' }); navigate('merchantIntro', {}, { resetTo: true }) }} Icon={Store}>رحلة توثيق تاجر جديد (M-042)</Btn>
         <Btn onClick={() => dispatch({ type: 'SET_OFFLINE', offline: !state.offline })} Icon={state.offline ? Wifi : WifiOff}>{state.offline ? 'محاكاة: عودة الاتصال' : 'محاكاة: انقطاع الإنترنت'}</Btn>
         <Btn onClick={() => go('/gallery')} Icon={LayoutGrid}>الانتقال إلى معرض الشاشات</Btn>
@@ -443,9 +444,9 @@ function DemoPanel({ go }) {
       <div className="rounded-2xl bg-white/60 backdrop-blur border border-white p-3 text-[11px] leading-relaxed text-ink-600">
         <p className="font-extrabold text-ink-500 mb-1">بيانات التجربة</p>
         <ul className="list-disc pr-4 space-y-0.5">
-          <li>الدخول: أي بريد صالح أو رقم يبدأ بـ 7 (9 أرقام)</li>
-          <li>رمز التحقق OTP: <b className="text-primary">1234</b> — 3 محاولات خاطئة تقفل الحساب</li>
-          <li>الخصومات والإشعارات موقوفة مؤقتاً (قرار المنتج)</li>
+          <li>الدخول: أي بريد صالح + كلمة مرور من 8 أحرف</li>
+          <li>التسجيل: رابط تحقق تجريبي (بدون OTP) · الاستعادة عبر البريد فقط</li>
+          <li>الخصومات موقوفة مؤقتاً · أيقونة التنبيهات بجانب السلة</li>
           <li>بريد يحتوي "fail" ← محاكاة فشل التسجيل</li>
           <li>الطلب يتقدّم تلقائياً أو يدوياً من لوحة التاجر</li>
         </ul>

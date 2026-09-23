@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff, LifeBuoy, Phone } from 'lucide-react'
-import { useApp, OTP_LENGTH, OTP_MAX_ATTEMPTS, DEMO_OTP } from '../store/AppContext'
+import { ShoppingBag, Sparkles, Store, ChevronLeft, Check, ShieldCheck, User, Mail, Lock, Clock, KeyRound, AlertCircle, Loader2, Eye, EyeOff, LifeBuoy } from 'lucide-react'
+import { useApp } from '../store/AppContext'
 import { Logo, StatusBar, HomeIndicator, StateScreen, KeyValue, TopBar } from '../components/ui'
 import { USER } from '../data/mock'
 
@@ -173,24 +173,35 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const PHONE_RE = /^(\+?967)?7\d{8}$/
 
 export function Login() {
-  const { navigate, dispatch, current, back, canGoBack, state } = useApp()
+  const { navigate, dispatch, current, back, canGoBack, state, switchTab } = useApp()
   const preset = current.params?.preset // 'invalid' → معاينة حالة CUS-002 مباشرة
-  const gated = !!current.params?.gated || !!state.auth.returnTo // وصل إلى هنا لأن ميزة تتطلب الدخول
-  const [value, setValue] = useState(preset === 'invalid' ? 'user@invalid-mail' : '')
+  const gated = !!current.params?.gated || !!state.auth.returnTo
+  const [email, setEmail] = useState(preset === 'invalid' ? 'user@invalid-mail' : '')
+  const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState(preset === 'invalid' ? 'البريد الإلكتروني المدخل غير صالح أو ناقص' : '')
   const [loading, setLoading] = useState(false)
+  const finishLogin = () => {
+    dispatch({ type: 'SET_EMAIL', email: email.trim() })
+    dispatch({ type: 'LOGIN', welcome: true })
+    const returnTo = state.auth.returnTo
+    if (state.auth.accountType === 'merchant' && state.merchantStatus === 'banned') return navigate('merchantBanned', {}, { resetTo: true })
+    if (returnTo?.name) {
+      dispatch({ type: 'CLEAR_RETURN_TO' })
+      return navigate(returnTo.name, returnTo.params || {}, { resetTo: true })
+    }
+    if (state.auth.accountType === 'merchant') return switchTab('m-dashboard')
+    switchTab('home')
+  }
   const submit = (e) => {
     e?.preventDefault()
-    const v = value.trim()
-    if (!v) return setError('يرجى إدخال البريد الإلكتروني أو رقم الجوال')
-    if (!EMAIL_RE.test(v) && !PHONE_RE.test(v.replace(/\s/g, ''))) return setError('البريد الإلكتروني المدخل غير صالح أو ناقص')
+    const v = email.trim()
+    if (!v) return setError('يرجى إدخال البريد الإلكتروني')
+    if (!EMAIL_RE.test(v)) return setError('البريد الإلكتروني المدخل غير صالح أو ناقص')
+    if (password.length < 8) return setError('كلمة المرور 8 أحرف على الأقل')
     setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      dispatch({ type: 'SET_EMAIL', email: v })
-      navigate('otpSent')
-    }, 700)
+    setTimeout(() => { setLoading(false); finishLogin() }, 700)
   }
   return (
     <div className="flex-1 flex flex-col bg-white">
@@ -205,19 +216,16 @@ export function Login() {
       </div>
       <form onSubmit={submit} className="px-6 pt-8">
         {gated && (
-          <div className="mb-4 rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 text-[11px] font-bold text-primary flex items-center gap-2"><Lock size={14} className="shrink-0" /> هذه الميزة تتطلب تسجيل الدخول — ستعود إلى ما كنت تفعله بعد التحقق.</div>
+          <div className="mb-4 rounded-card bg-primary-50 border border-primary-100 px-3 py-2.5 text-[11px] font-bold text-primary flex items-center gap-2"><Lock size={14} className="shrink-0" /> هذه الميزة تتطلب تسجيل الدخول — ستعود إلى ما كنت تفعله بعد الدخول.</div>
         )}
         <h1 className="text-[20px] font-extrabold text-ink-900">تسجيل الدخول بالبريد الإلكتروني</h1>
-        <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">أدخل بريدك الإلكتروني أو رقم هاتفك لتلقي رمز التحقق السريع (OTP) والدخول بأمان</p>
-        <label className="label mt-6">البريد الإلكتروني أو رقم الجوال</label>
+        <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">أدخل بريدك وكلمة المرور للدخول. تأكيد الحساب الجديد يتم عبر رابط يُرسل إلى بريدك (بدون رمز OTP).</p>
+        <label className="label mt-6">البريد الإلكتروني</label>
         <div className="relative">
           <input
             dir="ltr"
-            value={value}
-            onChange={(e) => {
-              setValue(e.target.value)
-              if (error) setError('')
-            }}
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); if (error) setError('') }}
             placeholder="salem@example.com"
             className={`field text-left pl-11 ${error ? 'field-error' : ''}`}
             autoComplete="email"
@@ -225,18 +233,33 @@ export function Login() {
           />
           <Mail size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${error ? 'text-danger' : 'text-ink-400'}`} />
         </div>
+        <label className="label mt-4">كلمة المرور</label>
+        <div className="relative">
+          <input
+            type={showPw ? 'text' : 'password'}
+            dir="ltr"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); if (error) setError('') }}
+            placeholder="••••••••"
+            className={`field text-left pl-11 ${error ? 'field-error' : ''}`}
+            autoComplete="current-password"
+          />
+          <button type="button" onClick={() => setShowPw(!showPw)} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" aria-label="إظهار كلمة المرور">
+            {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         {error ? (
           <p className="flex items-center gap-1 text-[11px] font-bold text-danger mt-2">
             <AlertCircle size={13} /> {error}
           </p>
         ) : (
-          <p className="text-[11px] font-medium text-ink-400 mt-2">للتجربة: أي بريد صحيح، ورمز التحقق هو <b className="text-primary tabular">{DEMO_OTP}</b></p>
+          <p className="text-[11px] font-medium text-ink-400 mt-2">للتجربة: أي بريد صحيح وكلمة مرور من 8 أحرف على الأقل</p>
         )}
         <div className="flex justify-end mt-2">
-          <button type="button" onClick={() => navigate('forgotPassword', { value })} className="text-[12px] font-bold text-secondary">نسيت بيانات الدخول؟ استعادة الحساب</button>
+          <button type="button" onClick={() => navigate('forgotPassword', { email })} className="text-[12px] font-bold text-secondary">نسيت كلمة المرور؟ الاستعادة عبر البريد</button>
         </div>
         <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">
-          {loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال رمز التحقق (OTP)'}
+          {loading ? <Loader2 className="animate-spin" size={18} /> : 'تسجيل الدخول'}
         </button>
       </form>
       <div className="flex-1" />
@@ -250,211 +273,38 @@ export function Login() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  تم إرسال رمز التحقق (CUS-004) — OTP من 4 أرقام موحّد
+//  تم إرسال رابط التحقق — محاكاة تدفق Supabase (signUp → email confirm link)
 // ─────────────────────────────────────────────────────────────
-export function OtpSent() {
-  const { navigate, state } = useApp()
+export function VerifyLinkSent() {
+  const { navigate, dispatch, state, current } = useApp()
+  const email = current.params?.email || state.auth.email || USER.email
+  const name = current.params?.name || USER.name
+  const purpose = current.params?.purpose || 'verify' // verify | reset
+  const openLink = () => {
+    if (purpose === 'reset') return navigate('resetPassword', { email }, { replace: true })
+    dispatch({ type: 'SET_EMAIL', email })
+    dispatch({ type: 'LOGIN' })
+    navigate('registerSuccess', { name }, { resetTo: true })
+  }
+  const title = purpose === 'reset' ? 'تم إرسال رابط استعادة كلمة المرور' : 'تم إرسال رابط التحقق'
+  const desc = purpose === 'reset'
+    ? 'افتح الرابط المرسل إلى بريدك لتعيين كلمة مرور جديدة. لا نستخدم رمز OTP.'
+    : 'افتح الرابط المرسل إلى بريدك لتأكيد الحساب والدخول مباشرة. لا نستخدم رمز OTP.'
   return (
     <StateScreen
       tone="success"
       icon={Mail}
-      title="تم إرسال رمز التحقق (OTP)"
-      description={`أرسلنا رمز تحقق مكوّناً من ${OTP_LENGTH} أرقام إلى:`}
-      primary={{ label: 'الانتقال لإدخال الرمز', onClick: () => navigate('otp', {}, { replace: true }) }}
+      title={title}
+      description={desc}
+      primary={{ label: purpose === 'reset' ? 'فتح رابط الاستعادة (تجريبي)' : 'فتح رابط التحقق (تجريبي)', onClick: openLink }}
+      secondary={{ label: 'العودة لتسجيل الدخول', onClick: () => navigate('login', {}, { resetTo: true }) }}
     >
-      <div className="inline-block bg-primary-50 text-primary text-[12px] font-bold rounded-full px-4 py-1.5 mb-4" dir="ltr">{state.auth.email || USER.email}</div>
+      <div className="inline-block bg-primary-50 text-primary text-[12px] font-bold rounded-full px-4 py-1.5 mb-4" dir="ltr">{email}</div>
       <div className="card p-4 text-right">
         <div className="flex items-center gap-2 text-[12px] font-bold text-ink-900">
-          <Clock size={14} className="text-primary" /> صلاحية الرمز: 10 دقائق
+          <Clock size={14} className="text-primary" /> صلاحية الرابط: 24 ساعة
         </div>
-        <p className="text-[11px] font-medium text-ink-400 leading-relaxed mt-1">إذا لم تجد الرسالة في صندوق البريد الوارد، يرجى مراجعة مجلد الرسائل غير المرغوب فيها (Spam).</p>
-      </div>
-    </StateScreen>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────
-//  التحقق من رمز OTP (4 خانات) + خطأ (CUS-005) + حظر (CUS-006)
-// ─────────────────────────────────────────────────────────────
-const OTP_TTL = 60 // صلاحية الرمز بالثواني (عرض توضيحي) — إعادة الإرسال تُتاح بعد 30 ث، وعند الصفر يُعتبر الرمز منتهياً
-export function OtpVerify() {
-  const { navigate, dispatch, state, back, current } = useApp()
-  const preset = current.params?.preset // 'wrong' → معاينة حالة CUS-005 · 'expired' → معاينة حالة انتهاء الرمز
-  const [digits, setDigits] = useState(preset === 'wrong' ? ['9', '9', '9', '9'] : Array(OTP_LENGTH).fill(''))
-  const [error, setError] = useState(preset === 'wrong')
-  const [timer, setTimer] = useState(preset === 'expired' ? 0 : OTP_TTL)
-  const [verifying, setVerifying] = useState(false) // حالة التحميل أثناء التحقق
-  const [resent, setResent] = useState(false)
-  const refs = useRef([])
-  const attemptsLeft = OTP_MAX_ATTEMPTS - state.auth.otpAttempts
-  const locked = !!state.auth.lockedUntil
-  const expired = timer <= 0 // انتهت صلاحية الرمز: يُمنع التحقق حتى إعادة الإرسال
-
-  useEffect(() => {
-    if (timer <= 0) return
-    const t = setTimeout(() => setTimer(timer - 1), 1000)
-    return () => clearTimeout(t)
-  }, [timer])
-
-  const resend = () => {
-    setTimer(OTP_TTL)
-    setDigits(Array(OTP_LENGTH).fill(''))
-    setError(false)
-    setResent(true)
-    setTimeout(() => refs.current[0]?.focus(), 50)
-  }
-
-  useEffect(() => {
-    if (locked) navigate('otpLocked', {}, { replace: true })
-  }, [locked, navigate])
-
-  const setAt = (idx, v) => {
-    if (verifying || expired) return
-    const d = v.replace(/\D/g, '').slice(-1)
-    const next = [...digits]
-    next[idx] = d
-    setDigits(next)
-    setError(false)
-    if (d && idx < OTP_LENGTH - 1) refs.current[idx + 1]?.focus()
-    if (next.every(Boolean)) verify(next.join(''))
-  }
-  const onKey = (idx, e) => {
-    if (e.key === 'Backspace' && !digits[idx] && idx > 0) refs.current[idx - 1]?.focus()
-  }
-  const onPaste = (e) => {
-    const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, OTP_LENGTH)
-    if (t.length === OTP_LENGTH) {
-      e.preventDefault()
-      const next = t.split('')
-      setDigits(next)
-      verify(t)
-    }
-  }
-  const verify = (code) => {
-    if (verifying || expired || code.length !== OTP_LENGTH) return
-    setVerifying(true)
-    // محاكاة زمن التحقق من الخادم (حالة تحميل واضحة) ثم النتيجة
-    setTimeout(() => {
-      setVerifying(false)
-      if (code === DEMO_OTP) {
-        dispatch({ type: 'LOGIN' })
-        navigate('loginSuccess', {}, { resetTo: true })
-      } else {
-        setError(true)
-        dispatch({ type: 'OTP_FAIL' })
-        setTimeout(() => {
-          setDigits(Array(OTP_LENGTH).fill(''))
-          refs.current[0]?.focus()
-        }, 500)
-      }
-    }, 900)
-  }
-  const masked = '+967 773 *** 064'
-  return (
-    <div className="flex-1 flex flex-col bg-white">
-      <StatusBar />
-      <div className="px-4 pt-1">
-        <button onClick={back} className="icon-btn" aria-label="رجوع">
-          <ChevronLeft size={18} className="rotate-180" strokeWidth={2.4} />
-        </button>
-      </div>
-      <div className="px-6 pt-8">
-        <h1 className="text-[24px] font-extrabold text-ink-900">التحقق من رمز OTP</h1>
-        <p className="text-[13px] font-medium text-ink-500 mt-1">أدخل الرمز المكوّن من {OTP_LENGTH} أرقام المرسل إلى هاتفك المحمول</p>
-        <p className="text-[14px] font-bold text-primary mt-1 tabular" dir="ltr">{masked}</p>
-
-        <div className="flex justify-center gap-3 mt-10" dir="ltr" onPaste={onPaste}>
-          {digits.map((d, idx) => (
-            <input
-              key={idx}
-              ref={(el) => (refs.current[idx] = el)}
-              value={d}
-              onChange={(e) => setAt(idx, e.target.value)}
-              onKeyDown={(e) => onKey(idx, e)}
-              inputMode="numeric"
-              maxLength={1}
-              autoFocus={idx === 0}
-              disabled={verifying || expired}
-              className={`w-14 h-16 rounded-2xl text-center text-[24px] font-extrabold tabular outline-none border-2 transition disabled:opacity-60 ${
-                error ? 'border-danger bg-danger-50 text-danger animate-bounce-soft' : expired ? 'border-transparent bg-ink-100 text-ink-300' : d ? 'border-primary bg-primary-50 text-ink-900' : 'border-transparent bg-ink-100 text-ink-900 focus:border-primary focus:bg-white'
-              }`}
-            />
-          ))}
-        </div>
-
-        {verifying ? (
-          <div className="mt-5 bg-primary-50 border border-primary-100 rounded-field px-4 py-3 flex items-center justify-center gap-2 text-[12px] font-bold text-primary" role="status">
-            <Loader2 size={16} className="animate-spin" /> جارٍ التحقق من الرمز...
-          </div>
-        ) : expired ? (
-          <div className="mt-5 bg-warning-50 border border-warning-100 rounded-field px-4 py-3 text-center">
-            <p className="text-[12px] font-bold text-warning-700 flex items-center justify-center gap-2"><Clock size={16} /> انتهت صلاحية رمز التحقق</p>
-            <p className="text-[11px] font-medium text-ink-500 mt-1">اطلب رمزاً جديداً لإكمال تسجيل الدخول</p>
-            <button onClick={resend} className="btn-primary btn-sm mt-3 mx-auto">إعادة إرسال الرمز</button>
-          </div>
-        ) : error ? (
-          <div className="mt-5 bg-danger-50 border border-danger-100 rounded-field px-4 py-3 flex items-center gap-2 text-[12px] font-bold text-danger-700">
-            <AlertCircle size={16} /> رمز التحقق المدخل غير صحيح — المحاولات المتبقية: {attemptsLeft} من {OTP_MAX_ATTEMPTS}
-          </div>
-        ) : (
-          <div className="text-center mt-8">
-            {resent && <p className="text-[11px] font-bold text-success-700 mb-1 flex items-center justify-center gap-1"><Check size={13} strokeWidth={3} /> تم إرسال رمز جديد</p>}
-            <p className="text-[12px] font-semibold text-primary">
-              صلاحية الرمز تنتهي خلال <span className="font-bold tabular">00:{String(timer).padStart(2, '0')}</span>
-            </p>
-            <p className="text-[11px] font-medium text-ink-400 mt-1">المحاولات المتبقية: {attemptsLeft} من {OTP_MAX_ATTEMPTS}</p>
-          </div>
-        )}
-        {!expired && !verifying && (
-          <div className="text-center mt-3">
-            {timer > OTP_TTL - 30 ? (
-              <p className="text-[11px] font-medium text-ink-400">لم يصلك الرمز؟ يمكنك إعادة الإرسال خلال <span className="font-bold tabular">{timer - (OTP_TTL - 30)}</span> ث</p>
-            ) : (
-              <button onClick={resend} className="text-[12px] font-bold text-primary underline underline-offset-4">إعادة إرسال الرمز</button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="flex-1" />
-      <div className="px-6 pb-4">
-        <button onClick={() => verify(digits.join(''))} disabled={!digits.every(Boolean) || verifying || expired} className="w-full btn-primary btn-lg">
-          {verifying ? <><Loader2 size={18} className="animate-spin" /> جارٍ التحقق...</> : expired ? 'انتهت صلاحية الرمز' : 'تأكيد ومتابعة'}
-        </button>
-      </div>
-      <HomeIndicator />
-    </div>
-  )
-}
-
-export function OtpLocked() {
-  const { navigate, dispatch } = useApp()
-  const [left, setLeft] = useState(14 * 60 + 59)
-  useEffect(() => {
-    const t = setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000)
-    return () => clearInterval(t)
-  }, [])
-  const mm = String(Math.floor(left / 60)).padStart(2, '0')
-  const ss = String(left % 60).padStart(2, '0')
-  return (
-    <StateScreen
-      tone="warning"
-      icon={Lock}
-      code="CUS-006"
-      showBack={false}
-      title="تم تقييد المحاولات مؤقتاً"
-      description="لحماية أمان حسابك، لقد تجاوزت عدد محاولات إدخال الرمز المسموح بها."
-      primary={{
-        label: 'العودة لصفحة الدخول',
-        onClick: () => {
-          dispatch({ type: 'OTP_RESET' })
-          navigate('login', {}, { resetTo: true })
-        },
-      }}
-    >
-      <div className="card p-5">
-        <p className="text-[12px] font-medium text-ink-500">الوقت المتبقي لفك الحظر المؤقت:</p>
-        <p className="text-[34px] font-black text-secondary tabular leading-none mt-2" dir="ltr">{mm} : {ss}</p>
-        <p className="text-[11px] font-medium text-ink-400 mt-2">يمكنك طلب رمز تحقق جديد بعد انقضاء الوقت المحدد أعلاه.</p>
+        <p className="text-[11px] font-medium text-ink-400 leading-relaxed mt-1">إذا لم تجد الرسالة في صندوق الوارد، راجع مجلد الرسائل غير المرغوب فيها (Spam). الزر أعلاه يحاكي فتح الرابط في النموذج.</p>
       </div>
     </StateScreen>
   )
@@ -462,65 +312,54 @@ export function OtpLocked() {
 
 export function LoginSuccess() {
   const { switchTab, navigate, state, dispatch, isMerchant, isBanned } = useApp()
+  const [sec, setSec] = useState(5)
   const returnTo = state.auth.returnTo
   const bannedMerchant = isBanned && state.auth.accountType === 'merchant'
   const proceed = () => {
     dispatch({ type: 'CLEAR_RETURN_TO' })
-    if (bannedMerchant) return navigate('merchantBanned', {}, { resetTo: true }) // التاجر المحظور يرى شاشة الحظر لا اللوحة
+    dispatch({ type: 'WELCOME_CLOSE' })
+    if (bannedMerchant) return navigate('merchantBanned', {}, { resetTo: true })
     if (returnTo?.name) return navigate(returnTo.name, returnTo.params || {}, { resetTo: true })
     if (isMerchant && state.auth.accountType === 'merchant') return switchTab('m-dashboard')
     switchTab('home')
   }
-  const label = bannedMerchant ? 'عرض حالة المتجر' : returnTo?.name ? 'المتابعة إلى حيث توقفت' : isMerchant && state.auth.accountType === 'merchant' ? 'الانتقال إلى لوحة تحكم المتجر' : 'المتابعة للرئيسية والتسوق'
+  useEffect(() => {
+    const t = setInterval(() => setSec((n) => n - 1), 1000)
+    return () => clearInterval(t)
+  }, [])
+  useEffect(() => { if (sec <= 0) proceed() }, [sec])
   return (
-    <StateScreen
-      tone="info"
-      icon={Check}
-      showBack={false}
-      title="أهلاً بك مجدداً في جديد!"
-      description="تم التحقق من هويتك بنجاح ومصادقة الدخول إلى حسابك."
-      primary={{ label, onClick: proceed }}
-    >
-      <KeyValue rows={[['طريقة التحقق:', `رمز البريد (OTP)`, 'text-primary'], ['نوع الحساب:', bannedMerchant ? 'تاجر — متجر محظور' : isMerchant ? 'تاجر معتمد' : 'عميل', bannedMerchant ? 'text-danger' : isMerchant ? 'text-secondary' : 'text-ink-900'], ['حالة الجلسة:', 'نشطة وآمنة', 'text-success-700']]} />
-    </StateScreen>
+    <div className="flex-1 flex flex-col bg-ink-100 relative">
+      <StatusBar />
+      <div className="absolute inset-0 bg-ink-900/55 backdrop-blur-[3px]" />
+      <div className="relative flex-1 flex items-center justify-center px-6">
+        <div className="w-full bg-white rounded-modal shadow-modal p-6 text-center animate-pop">
+          <div className="w-16 h-16 rounded-2xl bg-primary-50 text-primary flex items-center justify-center mx-auto"><Check size={28} strokeWidth={2.6} /></div>
+          <h2 className="text-[18px] font-extrabold text-ink-900 mt-3">أهلاً بك مجدداً في جديد</h2>
+          <p className="text-[12px] text-ink-500 mt-1">تم تسجيل دخولك بنجاح. يُغلق هذا الإشعار تلقائياً خلال {Math.max(0, sec)} ث.</p>
+          <button onClick={proceed} className="w-full btn-primary btn-lg mt-5">الذهاب للتسوق</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────
-//  استعادة الحساب / نسيت بيانات الدخول
-//  الدخول يتم برمز OTP (بلا كلمة مرور) — لذا الاستعادة = التحقق من هوية المستخدم عبر قناة بديلة
-//  ثم تحديث البريد/الجوال المرتبط بالحساب
-// ─────────────────────────────────────────────────────────────
 export function ForgotPassword() {
-  const { navigate, back, dispatch, showToast, current } = useApp()
-  const [channel, setChannel] = useState('phone')
-  const [value, setValue] = useState(current.params?.value || '')
+  const { navigate, back, dispatch, current } = useApp()
+  const [value, setValue] = useState(current.params?.email || current.params?.value || '')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
   const submit = (e) => {
     e?.preventDefault()
     const v = value.trim()
-    const ok = channel === 'phone' ? PHONE_RE.test(v.replace(/\s/g, '')) : EMAIL_RE.test(v)
-    if (!ok) return setError(channel === 'phone' ? 'أدخل رقم جوال صحيح يبدأ بـ 7 (9 أرقام)' : 'أدخل بريداً إلكترونياً صحيحاً')
+    if (!EMAIL_RE.test(v)) return setError('أدخل بريداً إلكترونياً صحيحاً')
     setError('')
     setLoading(true)
     setTimeout(() => {
       setLoading(false)
-      setSent(true)
       dispatch({ type: 'SET_EMAIL', email: v })
+      navigate('verifyLinkSent', { email: v, purpose: 'reset' }, { replace: true })
     }, 700)
-  }
-  if (sent) {
-    return (
-      <StateScreen tone="success" icon={KeyRound} title="تم إرسال رابط استعادة الحساب" description={`أرسلنا رمز تحقق ورابط استعادة إلى ${channel === 'phone' ? 'رقم الجوال' : 'البريد الإلكتروني'} المسجّل. أدخل الرمز لتأكيد هويتك واستعادة الوصول إلى حسابك.`} primary={{ label: 'إدخال رمز التحقق', onClick: () => navigate('otp', {}, { replace: true }) }} secondary={{ label: 'العودة لتسجيل الدخول', onClick: () => navigate('login', {}, { resetTo: true }) }}>
-        <div className="inline-block bg-primary-50 text-primary text-[12px] font-bold rounded-full px-4 py-1.5 mb-4" dir="ltr">{value}</div>
-        <div className="card p-4 text-right">
-          <p className="text-[12px] font-bold text-ink-900 flex items-center gap-2"><Clock size={14} className="text-primary" /> صلاحية الرمز: 10 دقائق</p>
-          <p className="text-[11px] font-medium text-ink-400 leading-relaxed mt-1">لم يصلك شيء؟ تأكد من الرقم/البريد أو تواصل مع الدعم الفني لاستعادة الحساب يدوياً بعد التحقق من هويتك.</p>
-        </div>
-      </StateScreen>
-    )
   }
   return (
     <div className="flex-1 flex flex-col bg-white">
@@ -531,22 +370,53 @@ export function ForgotPassword() {
       </div>
       <form onSubmit={submit} className="px-6 pt-6">
         <div className="w-16 h-16 rounded-2xl bg-secondary-50 text-secondary flex items-center justify-center"><LifeBuoy size={30} strokeWidth={2} /></div>
-        <h1 className="text-[22px] font-extrabold text-ink-900 mt-4">استعادة الوصول إلى حسابك</h1>
-        <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">فقدت الوصول إلى بريدك أو رقم جوالك؟ اختر قناة التحقق البديلة المسجّلة في حسابك وسنرسل لك رمز استعادة.</p>
-        <div className="grid grid-cols-2 gap-2 mt-5">
-          {[['phone', Phone, 'رقم الجوال المسجّل'], ['email', Mail, 'البريد الإلكتروني']].map(([k, Icon, l]) => (
-            <button type="button" key={k} onClick={() => { setChannel(k); setError('') }} className={`h-12 rounded-field border-2 flex items-center justify-center gap-2 text-[12px] font-bold transition ${channel === k ? 'border-primary bg-primary-50/60 text-primary' : 'border-ink-200 text-ink-600'}`}><Icon size={16} /> {l}</button>
-          ))}
-        </div>
-        <label className="label mt-5">{channel === 'phone' ? 'رقم الجوال' : 'البريد الإلكتروني'}</label>
-        <input dir="ltr" value={value} onChange={(e) => { setValue(e.target.value); if (error) setError('') }} placeholder={channel === 'phone' ? '7xxxxxxxx' : 'salem@example.com'} inputMode={channel === 'phone' ? 'tel' : 'email'} className={`field text-left ${error ? 'field-error' : ''}`} />
-        {error ? <p className="flex items-center gap-1 text-[11px] font-bold text-danger mt-2"><AlertCircle size={13} /> {error}</p> : <p className="text-[11px] font-medium text-ink-400 mt-2">سيصلك رمز من {OTP_LENGTH} أرقام (للتجربة: {DEMO_OTP})</p>}
-        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">{loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال رمز الاستعادة'}</button>
+        <h1 className="text-[22px] font-extrabold text-ink-900 mt-4">استعادة كلمة المرور</h1>
+        <p className="text-[12px] font-medium text-ink-500 mt-1 leading-relaxed">أدخل بريدك الإلكتروني وسنرسل رابطاً لتعيين كلمة مرور جديدة. الاستعادة عبر البريد فقط — بدون رمز OTP.</p>
+        <label className="label mt-5">البريد الإلكتروني</label>
+        <input dir="ltr" value={value} onChange={(e) => { setValue(e.target.value); if (error) setError('') }} placeholder="salem@example.com" inputMode="email" className={`field text-left ${error ? 'field-error' : ''}`} />
+        {error ? <p className="flex items-center gap-1 text-[11px] font-bold text-danger mt-2"><AlertCircle size={13} /> {error}</p> : <p className="text-[11px] font-medium text-ink-400 mt-2">سيصلك رابط استعادة صالح لمدة ساعة</p>}
+        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">{loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال رابط الاستعادة'}</button>
       </form>
       <div className="flex-1" />
-      <div className="px-6 pb-5 text-center">
-        <button onClick={() => navigate('support')} className="text-[12px] font-bold text-primary">لا أملك الوصول لأي منهما — تواصل مع الدعم</button>
-      </div>
+      <HomeIndicator />
+    </div>
+  )
+}
+
+export function ResetPassword() {
+  const { navigate, dispatch, current, switchTab } = useApp()
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const submit = (e) => {
+    e.preventDefault()
+    if (pw.length < 8) return setError('كلمة المرور 8 أحرف على الأقل')
+    if (pw !== pw2) return setError('كلمتا المرور غير متطابقتين')
+    setError('')
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      dispatch({ type: 'SET_EMAIL', email: current.params?.email || USER.email })
+      dispatch({ type: 'LOGIN', welcome: true })
+      switchTab('home')
+    }, 700)
+  }
+  return (
+    <div className="flex-1 flex flex-col bg-white">
+      <StatusBar />
+      <TopBar title="تعيين كلمة مرور جديدة" />
+      <form onSubmit={submit} className="px-6 pt-6">
+        <div className="w-16 h-16 rounded-2xl bg-primary-50 text-primary flex items-center justify-center"><KeyRound size={28} /></div>
+        <h1 className="text-[20px] font-extrabold text-ink-900 mt-4">كلمة المرور الجديدة</h1>
+        <p className="text-[12px] text-ink-500 mt-1">أدخل كلمة مرور جديدة لحسابك ثم ادخل مباشرة.</p>
+        <label className="label mt-5">كلمة المرور الجديدة</label>
+        <input type="password" dir="ltr" value={pw} onChange={(e) => { setPw(e.target.value); setError('') }} className="field text-left" placeholder="••••••••" />
+        <label className="label mt-3">تأكيد كلمة المرور</label>
+        <input type="password" dir="ltr" value={pw2} onChange={(e) => { setPw2(e.target.value); setError('') }} className="field text-left" placeholder="••••••••" />
+        {error && <p className="flex items-center gap-1 text-[11px] font-bold text-danger mt-2"><AlertCircle size={13} /> {error}</p>}
+        <button type="submit" disabled={loading} className="w-full btn-primary btn-lg mt-6">{loading ? <Loader2 className="animate-spin" size={18} /> : 'حفظ ودخول'}</button>
+      </form>
       <HomeIndicator />
     </div>
   )
@@ -559,7 +429,7 @@ export function Register() {
   const { navigate, dispatch, back, current, state } = useApp()
   const preset = current.params?.preset
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', agree: false })
-  const [errors, setErrors] = useState(preset === 'errors' ? { name: 'أدخل الاسم الكامل (3 أحرف على الأقل)', email: 'البريد الإلكتروني غير صالح', phone: 'رقم الجوال يجب أن يبدأ بـ 7 ويتكون من 9 أرقام', password: 'كلمة المرور 8 أحرف على الأقل', agree: 'يجب الموافقة على الشروط' } : {})
+  const [errors, setErrors] = useState(preset === 'errors' ? { name: 'أدخل الاسم الرباعي (أربعة أسماء مفصولة بمسافات)', email: 'البريد الإلكتروني غير صالح', phone: 'رقم الجوال يجب أن يبدأ بـ 7 ويتكون من 9 أرقام', password: 'كلمة المرور 8 أحرف على الأقل', agree: 'يجب الموافقة على الشروط' } : {})
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const set = (k) => (e) => {
@@ -569,7 +439,7 @@ export function Register() {
   const submit = (e) => {
     e.preventDefault()
     const er = {}
-    if (form.name.trim().length < 3) er.name = 'أدخل الاسم الكامل (3 أحرف على الأقل)'
+    if (form.name.trim().split(/\s+/).filter(Boolean).length < 4) er.name = 'أدخل الاسم الرباعي (أربعة أسماء مفصولة بمسافات)'
     if (!EMAIL_RE.test(form.email.trim())) er.email = 'البريد الإلكتروني غير صالح'
     if (!PHONE_RE.test(form.phone.replace(/\s/g, ''))) er.phone = 'رقم الجوال يجب أن يبدأ بـ 7 ويتكون من 9 أرقام'
     if (form.password.length < 8) er.password = 'كلمة المرور 8 أحرف على الأقل'
@@ -582,10 +452,7 @@ export function Register() {
       dispatch({ type: 'SET_EMAIL', email: form.email.trim() })
       // محاكاة فشل الحفظ إذا احتوى البريد على كلمة fail (لعرض CUS-010)
       if (/fail/i.test(form.email)) navigate('registerFailed')
-      else {
-        dispatch({ type: 'LOGIN' })
-        navigate('registerSuccess', { name: form.name }, { resetTo: true })
-      }
+      else navigate('verifyLinkSent', { email: form.email.trim(), name: form.name.trim(), purpose: 'verify' }, { resetTo: true })
     }, 800)
   }
   const F = ({ k, label, type = 'text', placeholder, dir, icon }) => (
@@ -606,7 +473,7 @@ export function Register() {
         <div className="flex justify-center pb-2">
           <Logo size={52} />
         </div>
-        <F k="name" label="الاسم الكامل" placeholder="محمد سعيد" />
+        <F k="name" label="الاسم الرباعي" placeholder="محمد سعيد أحمد علي" />
         <F k="email" label="البريد الإلكتروني" type="email" placeholder="mohammed.saeed@gmail.com" dir="ltr" />
         <F k="phone" label="رقم الجوال" type="tel" placeholder="773030064" dir="ltr" />
         <div>

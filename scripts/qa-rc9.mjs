@@ -1,6 +1,6 @@
 // فحص RC-9 (تعديلان): 1) الزائر يتصفح ولا يضيف للسلة — نافذة مطالبة واضحة (دخول / إنشاء حساب عميل) مع العودة لنفس المكان
 //                     2) شريط العروض في الرئيسية: أكثر من إعلان + نقاط تنقل + تمرير + إجراءات كل إعلان
-const PW = process.env.PLAYWRIGHT_PATH || '/home/user/.npm/_npx/f0a362733743bae2/node_modules/playwright/index.mjs'
+const PW = process.env.PLAYWRIGHT_PATH || '/home/user/jadeed-app/node_modules/playwright/index.mjs'
 const { chromium } = await import(PW)
 const browser = await chromium.launch()
 const errors = []

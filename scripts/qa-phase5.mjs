@@ -1,6 +1,6 @@
 // فحص E2E لنقاط المراجعة العشر في وضع النموذج التفاعلي (#/prototype)
 // التشغيل: node scripts/qa-phase5.mjs  (السيرفر على 5173)
-const PW = process.env.PLAYWRIGHT_PATH || '/home/user/.npm/_npx/f0a362733743bae2/node_modules/playwright/index.mjs'
+const PW = process.env.PLAYWRIGHT_PATH || '/home/user/jadeed-app/node_modules/playwright/index.mjs'
 const { chromium } = await import(PW)
 const browser = await chromium.launch()
 const errors = []
